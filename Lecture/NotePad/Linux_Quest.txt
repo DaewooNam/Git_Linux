@@ -1,0 +1,11 @@
+03.30
+
+exit()
+=> exit(0)은 '정상종료', exit(1)은 '에러메시지 종료' 
+
+reture()
+=> return 은 일반 함수 속에서 return 문을 사용하면 그 함수만 종료되지만, main() 함수 속의 return 문은 프로그램 전체를 중지시킵니다.
+
+argc(argument count), argv(argument vector)
+
+memset ??

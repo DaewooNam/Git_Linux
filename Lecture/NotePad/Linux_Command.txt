@@ -1,0 +1,35 @@
+03.26
+
+
+mkdir -> 폴더 만들기
+vi->note pad 열기
+i : 입력 모드
+esc 
+:w (save)
+:q (quit)
+:wq(save&quit)
+
+
+책 명령어 참고
+dd -> delete
+copy&past
+yy & p
+
+끼워 넣기
+a/i
+
+compile
+gcc
+
+.. 현재 directory 한칸 위로
+
+vi test.c
+gcc -o name(complier)
+executive(./ nmae)
+
+
+mkdir addr
+cd addr
+ls
+
+

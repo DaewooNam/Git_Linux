@@ -1,0 +1,486 @@
+IPC(프로세스 간 통신)
+	-파이프
+	-메시지큐
+	-공유메모리
+--------------------------------------------------------
+1)파이프
+#include <unistd.h>
+	void pipe(int filedes[2]);
+	- data를 FIFO방식으로 처리
+        - filedes[0] : 읽기 위하여 사용됨
+        - filedes[1] : 쓰기 위하여 사용됨 =>default 값
+
+---------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#define MSGSIZE 16
+ 
+char *msg1 = "hello, world #1";
+char *msg2 = "hello, world #2";
+char *msg3 = "hello, world #3";
+
+main()
+{  
+        char inbuf[MSGSIZE];
+        int p[2], j;
+
+        if (pipe(p) < 0) {
+               perror("pipe call");
+               exit(1);
+       }
+	/* write down pipe */
+       write(p[1], msg1, MSGSIZE);
+       write(p[1], msg2, MSGSIZE);
+       write(p[1], msg3, MSGSIZE);
+    
+       for (j=0; j<3; j++) {
+              read(p[0], inbuf, MSGSIZE);
+              printf("%s", inbuf);
+       }
+       exit(0);
+}
+---------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#define MSGSIZE 20 
+main()
+ {
+    int fd[2],pid;
+    char msgout[MSGSIZE] = "Hello, world\n";
+    char msgin[MSGSIZE]; 
+　
+    if (pipe(fd) == -1)
+    {
+	perror("pipe()");
+	exit(1);
+　  }
+    if ((pid = fork()) > 0)
+    {
+　　	close(fd[0]);
+　　	write(fd[1], msgout, MSGSIZE);
+    }
+    else if (pid == 0) 
+    {　　　　　　
+        close(fd[1]);
+        read(fd[0],msgin,MSGSIZE);
+        puts(msgin);
+    }
+    else
+    {
+    	perror("fork()");
+    	exit(2);
+    }
+}
+-----------------------------------------------------------
+bipipen_1.c
+
+#include <stdio.h>
+#include <unistd.h>
+#define 	MAXBUFF 	1024
+void client(int readfd, int writefd);
+void server(int readfd, int writefd);
+
+int main(void)
+{
+	int 	childpid, pipe1[2], pipe2[2];
+
+	if(pipe(pipe1) < 0 || pipe(pipe2) < 0)
+		  printf("pipe error");
+	if((childpid = fork()) < 0)
+		  printf("fork error");
+	else if(childpid > 0) { 		/* parent process */
+		close(pipe1[0]);
+		close(pipe2[1]);
+		client(pipe2[0], pipe1[1]);
+		while(wait((int *) 0) != childpid); //null pointer 자식이 종료할때까지 기다림
+
+		close(pipe1[1]);
+		close(pipe2[0]);
+		exit(0);
+	} else { 				/* child process */
+		close(pipe1[1]);
+		close(pipe2[0]);
+		server(pipe1[0], pipe2[1]);
+
+		close(pipe1[0]);
+		close(pipe2[1]);
+		exit(0);
+	}
+} 
+
+client(int readfd, int writefd)
+{
+	char 	buff[MAXBUFF];
+	int 	n;
+
+	//키보드로 오픈할 파일명을 입력받음
+
+	if(fgets(buff, MAXBUFF, stdin) == NULL)
+		   printf("client: filename read error");
+	n = strlen(buff);
+	if(buff[n-1] == '\n')
+		 n--;
+
+	//입력 받은 파일명을 첫번째 파이프에 씀
+	if(write(writefd, buff, n) != n)			/* 파일 이름 전송 */
+		  printf("client: filename write error");
+	
+	//두번째 파이프로부터 한줄씩 읽어와서 표준 출력에 출력
+	while((n = read(readfd, buff, MAXBUFF)) > 0)	/* 파일 데이터 수신 */
+		  if(write(1, buff, n) != n)
+			    printf("client: data write error");
+
+    	if(n < 0)
+		      printf("client: data read error");
+}
+
+server(int readfd, int writefd)
+{
+	char 	buff[MAXBUFF];
+	int 	n, fd;  extern int errno;
+
+	//첫 번째 파이프로부터 파일명을 읽음
+	if ((n = read(readfd, buff, MAXBUFF)) <= 0)	/* 파일 이름 수신 */
+		  printf("server: filename read error");
+	buff[n] = '\0';
+					
+	if ((fd = open(buff, O_RDONLY)) < 0) {
+		strcat(buff, " can’t open\n"); //뒤에다가 문자열을 붙여줌  
+		n = strlen(buff);
+		//파일 오픈에 실패하면 두번째 파이프에 error 메세지 출력
+		if(write(writefd, buff, n) != n)		/* 에러 메시지 전송 */
+			  printf("server: errmesg write error");
+	} 
+	else {
+		//오픈한 파일에서 한 줄씩 읽어서 
+		while((n = read(fd, buff, MAXBUFF)) > 0)
+			//그 값을 두번째 파이프에 씀
+			if(write(writefd, buff, n) != n)	/* 파일 데이터 전송 */
+				 printf("server: data write error");
+		  if(n < 0)
+			   printf("server: read error");
+	}
+}
+------------------------------------------------------------------------------------
+2)메시지 큐
+#include <sys/types.h>
+	#include <sys/ipc.h>
+	#include <sys/msg.h>
+
+	int msgget(key_t key, int msgflag);
+	-msgflag
+	   MSG_R
+	   MSG_W
+	   IPC_CREAT
+	   IPC_EXCL
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+
+struct msqid_ds {
+    struct ipc_perm msg_perm;
+    struct msg *msg_first;  /* first message on queue 큐의 처음 메세지*/
+    struct msg *msg_last;   /* last message in queue 큐의 마지막 메세지*/
+    time_t msg_stime;       /* last msgsnd time 마지막으로 msgsnd가 수행된 시간*/
+    time_t msg_rtime;       /* last msgrcv time 마지막으로 msgrcv가 수행된 시간*/
+    time_t msg_ctime;       /* last change time 마지막으로 change가 수행된 시간*/
+    struct wait_queue *wwait;
+    struct wait_queue *rwait;
+    ushort msg_cbytes;    
+    ushort msg_qnum;     
+    ushort msg_qbytes;      /* max number of bytes on queue 큐의 최대 바이트 수*/
+    ushort msg_lspid;       /* pid of last msgsnd 마지막으로 msgsnd를 수행한 pid*/
+    ushort msg_lrpid;       /* last receive pid 마지막으로 받은 pid*/
+};
+#include <sys/types.h>
+	#include <sys/ipc.h>
+	#include <sys/msg.h>
+
+	int msgsnd(int msgqid,const void *ptr,size_t nbyte,int flag);
+	-flag
+	. IPC_NOWAIT : 
+        . 0 : block
+
+#include <sys/types.h>
+	#include <sys/ipc.h>
+	#include <sys/msg.h>
+
+	int msgrcv(int msgqid,void *ptr,size_t nbyte,long type,int flag);
+ flag  
+   . IPC_NOWAIT : 
+
+   . MSG_NOERROR :
+     - 지정 : 메시지 버퍼보다 메시지가 큰 경우 데이터 절단
+     - 미지정 : msgrcv가 실패
+
+   . 0 : block된다.
+
+ type  
+    . type == 0 : 메시지 큐에 있는 첫번째 메시지 리턴
+    . type  >  0 : 메시지 큐에서 type와 메시지 타입이 같은 첫번째 메시지 리턴
+    . type  <  0 : 메시지 큐에서 type절대값과 같거나 작은 첫번째 메시지 리턴
+
+#include <sys/types.h>
+	#include <sys/ipc.h>
+	#include <sys/msg.h>
+
+	int msgctl(int msgid,int cmd,struct msgid_ds *buf);
+-----------------------------------------------------------------------------------
+<msg1.c>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+struct my_msg_st {
+    long int my_msg_type;
+    char some_text[BUFSIZ];
+};
+
+int main()
+{
+    int running = 1;
+    int msgid;
+    struct my_msg_st some_data;
+    long int msg_to_receive = 0;
+    msgid = msgget((key_t)1234, 0666 | IPC_CREAT);
+
+    if (msgid == -1) {
+        fprintf(stderr, "msgget failed with error: %d\n", errno);
+        exit(EXIT_FAILURE);
+    }
+    while(running) {
+        if (msgrcv(msgid, (void *)&some_data, BUFSIZ,
+                   msg_to_receive, 0) == -1) {
+            fprintf(stderr, "msgrcv failed with error: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+        printf("You wrote: %s", some_data.some_text);
+        if (strncmp(some_data.some_text, "end", 3) == 0) {
+            running = 0;
+        }
+    }
+  if (msgctl(msgid, IPC_RMID, 0) == -1) {
+        fprintf(stderr, "msgctl(IPC_RMID) failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+<msg2.c>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+#define MAX_TEXT 512
+
+struct my_msg_st {
+    long int my_msg_type;
+    char some_text[MAX_TEXT];
+};
+
+int main()
+{
+    int running = 1;
+    struct my_msg_st some_data;
+    int msgid;
+    char buffer[BUFSIZ];
+    msgid = msgget((key_t)1234, 0666 | IPC_CREAT);
+
+    if (msgid == -1) {
+        fprintf(stderr, "msgget failed with error: %d\n", errno);
+        exit(EXIT_FAILURE);
+    }
+
+    while(running) {
+        printf("Enter some text: ");
+        fgets(buffer, BUFSIZ, stdin);
+        some_data.my_msg_type = 1;
+        strcpy(some_data.some_text, buffer);
+        if (msgsnd(msgid, (void *)&some_data, MAX_TEXT, 0) == -1) {
+            fprintf(stderr, "msgsnd failed\n");
+            exit(EXIT_FAILURE);
+        }
+        if (strncmp(buffer, "end", 3) == 0) {
+            running = 0;
+        }
+    }
+
+    exit(EXIT_SUCCESS);
+}
+------------------------------------------------------------------------------------
+3)공유 메모리
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+int shmget(key_t key, int size, int flag);
+-------
+   struct shmid_ds {
+          struct ipc_perm shm_perm;        /* 동작 허가사항 */
+          int     shm_segsz;                           /* 세그먼트의 크기(bytes) */
+          time_t  shm_atime;                       /* 마지막 attach 시간 */
+          time_t  shm_dtime;                       /* 마지막 detach 시간 */
+          time_t  shm_ctime;                       /* 마지막 change 시간 */
+          unsigned short  shm_cpid;           /* 생성자의 pid */
+          unsigned short  shm_lpid;            /* 마지막 동작자의 pid */
+          short   shm_nattch;                       /* 현재 attaches no. */
+
+                                           /* the following are private */
+
+          unsigned short   shm_npages;      /* 세그먼트의 크기 (pages) */
+          unsigned long   *shm_pages;        /* array of ptrs to frames -> SHMMAX */ 
+          struct vm_area_struct *attaches; /* descriptors for attaches */
+  };
+------
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+char *shmat(int shmid, void *addr, int flag);
+------
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+int shmdt(void *addr);
+------
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+int shmctl(int shmid, int cmde, struct shmid_ds *buf);
+
+------------------------------------------------------------------------------------
+<shm1.c>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#define TEXT_SZ 2048
+
+struct shared_use_st {
+	int written_by_you;
+	char some_text[TEXT_SZ];
+}; 
+
+int main()
+{
+    int running = 1;
+    void *shared_memory = (void *)0;
+    struct shared_use_st *shared_stuff;
+    int shmid;
+
+    srand((unsigned int)getpid());    
+
+    shmid = shmget((key_t)1234, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    if (shmid == -1) {
+        fprintf(stderr, "shmget failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    shared_memory = shmat(shmid, (void *)0, 0);
+    if (shared_memory == (void *)-1) {
+        fprintf(stderr, "shmat failed\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Memory attached at %X\n", (int)shared_memory);
+
+    shared_stuff = (struct shared_use_st *)shared_memory;
+    shared_stuff->written_by_you = 0;
+    while(running) {
+        if (shared_stuff->written_by_you) {
+            printf("You wrote: %s", shared_stuff->some_text);
+            sleep( rand() % 4 );
+            shared_stuff->written_by_you = 0;
+            if (strncmp(shared_stuff->some_text, "end", 3) == 0) {
+                running = 0;
+            }
+        }
+    }
+    if (shmdt(shared_memory) == -1) {
+        fprintf(stderr, "shmdt failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (shmctl(shmid, IPC_RMID, 0) == -1) {
+        fprintf(stderr, "shmctl(IPC_RMID) failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+<shm2.c>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#define TEXT_SZ 2048
+
+struct shared_use_st {
+	int written_by_you;
+	char some_text[TEXT_SZ];
+}; 
+
+int main()
+{
+    int running = 1;
+    void *shared_memory = (void *)0;
+    struct shared_use_st *shared_stuff;
+    char buffer[BUFSIZ];
+    int shmid;
+
+    shmid = shmget((key_t)1234, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    if (shmid == -1) {
+        fprintf(stderr, "shmget failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    shared_memory = shmat(shmid, (void *)0, 0);
+    if (shared_memory == (void *)-1) {
+        fprintf(stderr, "shmat failed\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Memory attached at %X\n", (int)shared_memory);
+
+    shared_stuff = (struct shared_use_st *)shared_memory;
+    while(running) {
+        while(shared_stuff->written_by_you == 1) {
+            sleep(1);            
+            printf("waiting for client...\n");
+        }
+        printf("Enter some text: ");
+        fgets(buffer, BUFSIZ, stdin);
+        strncpy(shared_stuff->some_text, buffer, TEXT_SZ);
+        shared_stuff->written_by_you = 1;
+
+        if (strncmp(buffer, "end", 3) == 0) {
+                running = 0;
+        }
+    }
+    if (shmdt(shared_memory) == -1) {
+        fprintf(stderr, "shmdt failed\n");
+        exit(EXIT_FAILURE);
+    }
+    exit(EXIT_SUCCESS);
+}

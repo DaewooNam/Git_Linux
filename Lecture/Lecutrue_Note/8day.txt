@@ -1,0 +1,546 @@
+파일 상태와 디렉토리
+
+
+Stat 구조체
+
+#include <sys/types.h>
+// 상태 구조체 값 
+struct	stat {
+	mode_t	              st_mode; 	// file type & permission 
+	ino_t	              st_ino;		 
+	nlink_t               st_nlink;     // link count
+	uid_t 	              st_uid;
+	gid_t 	              st_gid;
+	dev_t	              st_dev;        
+	dev_t	              st_rdev;		
+	off_t	              st_size;
+	time_t                st_atime;     // last access
+	time_t                st_mtime;    // last modification
+	time_t                st_ctime;     // last file status change
+	long	              st_blksize;
+	long	              st_blocks;
+};
+--------------------------------------------------------------------------------
+파일 형태(File Type)
+정규파일(Regular File) //일반파일은 프로그램이나 데이터 또는 문서 등을 저장하는 것으로 간단히 파일이라고 부른다
+디렉토리 파일(Directory File)
+블록 특수화일(Block Special File) //장치 data
+문자 특수화일(Character Special File)
+FIFO(Block Special File) //장치 byte
+심볼릭 링크(Symbolic Link File)
+소켓(socket) (network)
+
+S_ISREG(mode)	:    정규 파일
+S_ISDIR(mode)	:    디렉토리 파일
+S_ISCHR(mode )	:    문자 특수 파일 
+S_ISBLK(mode)	:    블록 특수 파일
+S_ISFIFO(mode)  :    pipe 또는 FIFO
+S_ISLNK(mode)   :    심볼릭 링크
+S_ISSOCK(mode)  :    소켓
+
+퍼미션
+S_IRUSR                     user_read
+S_IWUSR                     user_write
+S_IXUSR                     user_execute
+S_IRGRP                     group_read
+S_IWGRP                     group_write
+S_IXGRP                     group_execute
+S_IROTH                     other_read
+S_IWOTH                     other_write
+S_IXOTH                     other_execute
+---------------------------------------------------------------------------
+real user id,real group id
+    - 프로세스를 실제로 실행시키고 있는 사용자의 ID
+    - 로그 인을 할때 사용된 ID
+
+effective user ID, effective group ID
+    - 파일에 대한 접근 권한을 결정
+
+set-user-ID, set-group-ID 비트 
+-----------------------------------------------------------------------------
+#include <sys/types.h> // 상태 정보를 읽을 때
+#include <sys/stat.h> 
+int  stat (const char *pathname, struct stat *buf  );   // 심볼링 링크 파일 대상 할때 다름 / 원본 파일 상태 확인
+int  fstat (int filedes, struct stat *buf  );           // 
+int  lstat (const char *pathname, struct stat *buf  );  // 심볼릭 링크 파일 상태를 읽어옴
+------------------------------------------------------------------------------
+#include	<sys/types.h>
+#include	<sys/stat.h>
+int  main(int argc, char *argv[])
+{
+	int	i;
+	struct stat	buf;
+	char	*ptr;
+	for (i = 1; i < argc; i++) {
+		printf("%s: ", argv[i]);
+		if (lstat(argv[i], &buf) < 0) {
+			perror("lstat( )");  continue;
+		}
+		if      (S_ISREG(buf.st_mode))	ptr = "regular";
+		else if (S_ISDIR(buf.st_mode))	ptr = "directory";
+		else if (S_ISCHR(buf.st_mode))	ptr = "character special";
+		else if (S_ISBLK(buf.st_mode))	ptr = "block special";
+		else if (S_ISFIFO(buf.st_mode))	ptr = "fifo";
+		else if (S_ISLNK(buf.st_mode))	ptr = "symbolic link";
+		else if (S_ISSOCK(buf.st_mode))	ptr = "socket";
+		else			ptr = "** unknown mode **";
+		printf("%s\n", ptr);
+	}
+	exit(0);
+}
+
+ln -s test.txt aaa.txt
+-------------------------------------------------------------------------------
+#include <unistd.h> //파일 모드 설정 방법
+int  access (const char *pathname, int mode  );
+-mode:
+  R_OK         test for read permission
+  W_OK        test for write permission
+  X_OK         test for execute permission
+  F_OK         test for existence permission
+
+--------------------------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+main(int argc,char **argv)
+{
+    int i;
+    
+    if(argc < 2){
+        printf("usage : access_1 file1 file2 ... fileN\n");
+        exit(1);
+    }
+    for(i=1;i<argc;i++){
+        if(access(argv[i],F_OK)!=0){
+            printf("%s isn't exist.\n",argv[i]);
+            continue; //다시 위로 올라감
+        }
+        
+        if(access(argv[i],R_OK)==0)
+            printf("User can read %s\n",argv[i]);
+        if(access(argv[i],W_OK)==0)
+            printf("User can write %s\n",argv[i]);
+        if(access(argv[i],X_OK)==0)
+            printf("User can execute %s\n",argv[i]);
+    }
+}	
+-----------------------------------------------------------------------------------
+#include <sys/types.h> (참고정도)
+#include <sys/stat.h>
+mode_t  umask (mode_t  cmask );
+- umask값을 프로세스 내에서 일시적으로 변경시키는 역할 수행
+- 특정 권한을 막는 기능
+
+- 프로세스 내에서 변경된 umask값은 프로세스가 종료 할 때까지만 유효
+-----------------------------------------------------------------------------------
+#include <stdio.h>
+#include <fcntl.h>
+
+main()
+{
+    if(open("before.test",O_WRONLY | O_CREAT | O_TRUNC,0777)<0){
+        printf("1st open call error\n");
+        exit(1);
+    }
+    
+    umask(077);		// &(~077) //소유자와 아더 읽고 쓰고 출력을 뺀다.
+    
+    if(open("after.test",O_WRONLY | O_CREAT | O_TRUNC,0777)<0){
+        printf("1st open call error\n");
+        exit(2);
+    }
+}	
+------------------------------------------------------------------------------------
+#include <sys/stat.h> (permission 을 변경시 사용 가능)
+#include <sys/types.h>
+int  chmod (const char *pathname, mode_t mode  ); (모드 변경 함수)
+int  fchmod (int filedes, mode_t mode  ); 경로 or fd diff 
+------------------------------------------------------------------------------------
+#include	<sys/types.h>
+#include	<sys/stat.h>
+
+main(void)
+{
+	struct stat		statbuf;
+
+	/* turn on set-group-ID and turn off group-execute */
+
+	if (stat("before.test", &statbuf) < 0) {
+		perror("stat error for before.test");
+		exit(-1);
+	}
+	if (chmod("before.test", (statbuf.st_mode & ~S_IXGRP) | S_ISGID) < 0){ //effective group id
+		perror("chmod error for before.test");
+		exit(-1);
+	}
+	
+	/* set absolute mode to "rw-r--r--" */ => 이건 위험함
+	if (chmod("after.test", S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) < 0) {
+		perror("chmod error for after.test");
+		exit(-1);
+	}
+}	
+-------------------------------------------------------------------------------------
+#include <sys/types.h> (참고정도)
+#include <unistd.h>
+int  chown (const char *pathname, uid_t owner, gid_t group );
+int  fchown (int filedes, uid_t owner, gid_t group );
+int  lchown (const char *pathname, uid_t owner, gid_t group ); //smybolic 일때 사용
+---------------------------------------------------------------------------------------
+#include	<sys/types.h>
+#include	<sys/stat.h>
+
+main(void)
+{
+	struct stat		statbuf;
+
+	if (lchown("aaa", 0,0)<0){
+		perror("chmod error for aaa");
+		exit(-1);
+	}
+}	
+--------------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <unistd.h>
+int truncate(const char *path, off_t length); (파일 일부를 자름)
+int ftruncate(int fd, off_t length);
+---------------------------------------------------------------------------------------
+#include	<sys/types.h> //6
+#include	<sys/stat.h>
+
+main(void)
+{
+	struct stat		statbuf;
+
+	if (truncate("trun.txt",10)<0){
+		perror("truncate error");
+		exit(-1);
+	}
+}
+---------------------------------------------------------------------------------------
+#include <unistd.h>
+int  link (const char *existingpath, const char *newpath  );
+-----------------------------------------------------------------------------------
+#include <stdio.h>
+main(int argc,char **argv) 
+{
+	int fd;
+
+  if(argc != 3){
+      printf("usage : link_1 existfile newfile\n");
+      exit(1);
+  }
+  if(link(argv[1],argv[2])<0){
+      printf("link call error\n");
+      exit(2);
+  }
+}
+-----------------------------------------------------------------------------------------
+#include <unistd.h>
+int  unlink (const char *pathname);
+경로제거.
+타겟 파일이 제거되는 것은 모든 경로가 다 제거되는 시점
+만약 모든 경로가 제거되더라도 프로세스가 사용중이면 사용이 끝날때까지 기다렸다가 제거
+--------------------------------------------------------------------------------------
+#include	<sys/types.h>
+#include	<sys/stat.h>
+#include	<fcntl.h>
+#include 	<unistd.h>
+int main(void)
+{
+	int fd, len;
+	char buf[20];
+	if ((fd=open("tempfile", O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0) {
+		perror("open error");
+		exit(-1);
+	}
+
+	unlink("tempfile");
+
+	if(write(fd, "How are you?", 12) != 12) {
+		perror("write error");
+		exit(-1);
+	}
+	lseek(fd, 0L, SEEK_SET);
+	if((len = read(fd, buf, sizeof(buf))) <=0){
+		perror("read error");
+		exit(-1);
+	}
+	else  buf[len] = '\0';
+	printf("%s\n", buf);
+	close(fd);		//실제 파일이 제거되는 시점
+  
+        if ((fd=open("tempfile", O_RDWR)) < 0) {
+		perror("Second open error");
+		exit(-1);
+	}
+	else 
+		close(fd);
+	exit(0);
+}
+-------------------------------------------------------------------------------------
+#include <stdio.h>
+int  remove (const char *pathname);
+------------------------------------------------------------------------------------
+#include <stdio.h>
+main(int argc,char **argv) 
+{
+	int fd;
+
+  if(argc != 3){
+      printf("usage : remove_1 oldname  newname\n");
+      exit(1);
+  }
+  if(link(argv[1],argv[2])<0){
+      printf("link call error\n");
+      exit(2);
+  }
+  else printf("step1 passed\n");
+  
+  if(remove(argv[1])<0){
+      printf("unlink error\n");
+      remove(argv[2]);
+      exit(3);
+  }
+  else printf("step2 passed\n");
+  
+  printf("success\n");
+}	
+--------------------------------------------------------------------------------------
+#include <stdio.h>
+int  rename (const char *oldname, const char *newname );
+----------------------------------------------------------------------------------
+#include <fcntl.h>
+main(int argc,char **argv) 
+{
+	int fd;
+
+        if(argc != 3){     
+                printf("usage : rename_1 oldname  newname\n");
+                       exit(1);
+        }
+
+	if((fd = open(argv[1],O_RDONLY)) < 0){
+  		printf("first open error\n");
+		exit(2);
+	}
+ 	else 
+	        close(fd);
+	     
+        if(rename(argv[1],argv[2])<0){
+                printf("rename call error\n");
+                exit(3);
+        }
+	if((fd = open(argv[1],O_RDONLY)) < 0){
+  		 printf("second open error\n");
+		 exit(4);
+	}
+	if((fd = open(argv[2],O_RDONLY)) < 0){
+  		 printf("third open error\n");
+		 exit(5);
+	}
+	exit(0);
+}	
+------------------------------------------------------------------------------------
+#include <unistd.h>
+int  symlink (const char *actualpath, const char *sympath ); //symbolic link 만들어줌
+------------------------------------------------------------------------------------
+#include <stdio.h>
+main(int argc,char **argv) 
+{
+    int fd;
+
+    if(argc != 3){
+          printf("usage : symlink_1 actualname symname\n");
+          exit(1); //
+
+    }
+    if(symlink(argv[1],argv[2])<0){
+          printf("symlink call error\n");
+          exit(2);
+    }
+    else
+          printf("symlink : %s -> %s\n",argv[2],argv[1]);
+}
+-----------------------------------------------------------------------------------
+#include <unistd.h>
+int  readlink (const char *pathname, char *buf, int bufsize );
+-링크 파일의 내용을 읽는다. 즉 타겟 파일의 경로
+-----------------------------------------------------------------------------------
+ln -s a.txt b.txt
+./프로그램 b.txt
+#include <stdio.h>
+
+main(int argc,char **argv) 
+{
+     int nbyte;
+     char buf[50];
+
+     if(argc != 2){
+         printf("usage : readlink_1 symname\n");
+         exit(1);
+     }
+     if((nbyte=readlink(argv[1],buf,50))<0){
+         printf("readlink call error\n");
+         exit(2);
+     }
+     else
+     {
+         buf[nbyte] = '\0';
+         printf("buf : %s \n",buf);
+     }
+}
+---------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <utime.h>
+int  utime (const char *pathname, const struct utimbuf *times );
+---------------------------------------------------------------------------------
+Directory
+- 일반 파일 및 다른 디렉토리의 이름으로 구성
+
+- dirent 구조체의 항목으로 구성되는 테이블 형식 
+   struct    dirent{
+      ino_t     d_ino;                               // I-node 번호
+      char     d_name[NAME_MAX + 1];    // 파일 이름
+   }
+-------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <sys/stat.h>
+int  mkdir (const char *pathname, mode_t  mode );
+int  rmdir (const char *pathname );
+--------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <dirent.h>
+DIR *opendir (const char *pathname);
+struct dirent *readdir(DIR *dp);
+----------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <dirent.h>
+void rewinddir (DIR *dp);
+int closedir (DIR *dp);
+------------------------------------------------------------------------------------
+#include <unistd.h>
+int chdir (const char *pathname);
+int fchdir (int filedes);
+----------------------------------------------------------------------------------
+#include <unistd.h>
+char *getcwd (char *buf, size_t size ); //현재 directory 값을 읽어온다. 
+---------------------------------------------------------------------------------
+#include <unistd.h>
+#include <stdio.h>
+
+#define PATH_MAX 1024
+
+int main(void)
+{
+	 char path[PATH_MAX+1];
+	 
+	 if(chdir("/home/kitr")<0)
+	  	perror("error chdir");
+	 else
+         {
+	      if(getcwd(path, PATH_MAX) == NULL)
+	            perror("error getcwd");
+	      else	
+	            printf("Current working directory changed to %s \n", path);
+	  }
+}
+------------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdio.h>
+//속 안에 있는 파일 까지는 확인 안함
+void access_perm(char *perm, mode_t mode)
+{
+	int i;	
+	char permchar[] = “rwx”; // read write 
+	memset(perm, ‘-’, 10); //----- null
+	perm[10] = ‘\0’;
+	if (S_ISDIR(mode)) perm[0] = ‘d’;
+	else if (S_ISCHR(mode)) perm[0 ] = ‘c’;
+	else if (S_ISBLK(mode)) perm[0 ] = ‘b’;
+	else if (S_ISFIFO(mode)) perm[0] = ‘p’;
+	else if (S_ISLNK(mode)) perm[0]  = ‘l’;
+	for (i = 0; i < 9; i++) {
+		if ((mode << i) & 0x100) //shift 연산
+			perm[i+1] = permchar[i%3];
+	}
+	if (mode & S_ISUID) perm[3] = ‘s’;
+	if (mode & S_ISGID) perm[6] = ‘s’;
+	if (mode & S_ISVTX) perm[9] = ‘t’;
+}
+main(int argc, char *argv[])
+{
+	DIR *dp;
+	struct stat statbuf;
+	struct dirent *dent;
+	char perm[11];
+	char pathname[80];
+
+	if (argc < 2) exit(1);
+	
+	stat(argv[1], &statbuf);
+	if (!S_ISDIR(statbuf.st_mode)) {
+		fprintf(stderr, “%s is not directory\n”,
+			argv[1]);
+		exit(1);
+	}
+	if ((dp = opendir(argv[1])) == NULL) {
+		perror(“Error:”);
+		exit(1);
+	}
+	printf(“Lists of Directory(%s):\n”, argv[1]);
+	while((dent = readdir(dp)) != NULL) { //현재 위치에 있는 값을 읽음
+		sprintf(pathname, “%s/%s”, argv[1],
+			dent->d_name);
+		lstat(pathname, &statbuf);
+		access_perm(perm, statbuf.st_mode); //11칸 배열
+		printf(“%s %8ld %s\n”, perm,statbuf.st_size,
+			dent->d_name);
+	}
+	closedir(dp);
+}
+---------------------------------------------------------------------------------
+#include <unistd.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+
+void printdir(char *dir, int depth)
+{
+	DIR *dp;
+	struct dirent *entry;
+	struct stat statbuf;
+
+	if((dp = opendir(dir)) == NULL) {
+		fprintf(stderr,”cannot open directory: %s\n”, dir);
+		return;
+	}
+	chdir(dir);
+	while((entry = readdir(dp)) != NULL) {
+		lstat(entry->d_name,&statbuf);
+		if(S_ISDIR(statbuf.st_mode)) {
+	/* Found a directory, but ignore . and .. */
+			if(strcmp(“.”,entry->d_name) == 0 ||
+				strcmp(“..”,entry->d_name) == 0)
+				continue;
+			printf(“depth=%d , fname=%s/\n”,depth,entry->d_name);
+			/* Recurse at a new indent level */
+			printdir(entry->d_name,depth+4); //재귀적으로 호출
+		}
+		else printf(“depth=%d , fname=%s/\n”,depth,entry->d_name);
+	}
+	chdir(“..”);
+	closedir(dp);
+}
+int main()
+{
+	printf(“Directory scan of /home:\n”);
+	printdir(“/home”,0); //깊이가 들어갈수록 
+	printf(“done.\n”);
+	exit(0);
+}

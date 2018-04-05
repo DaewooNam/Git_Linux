@@ -1,0 +1,279 @@
+쓰레드와 동기화
+aaaa
+1)쓰레드
+
+@쓰레드 생성
+#include <pthread.h>
+int pthread_create (pthread_t *thread, const pthread_attr_t *attr, 
+			void *(*start_routine)(void *), void *arg);
+*thread		쓰레드 ID
+attr		쓰레드 속성
+start_routine 	쓰레드 함수 이름
+arg		생성될 쓰레드에 전달될 인자들
+
+리턴값
+	정상 : 0
+
+@쓰레드 종료
+#include <pthread.h>
+void pthread_exit (void *value_ptr);
+--------------------------------------------------------------------------
+#include <stdio.h>
+#include <pthread.h>
+
+int thread_args[3] = { 0, 1, 2 };  /* 쓰레드가 사용할 인자 */
+
+/* 쓰레드로 수행할 함수 */
+void* Thread( void *arg )
+{
+    int i;
+    for ( i=0; i<3; i++ ){
+        printf( "thread %d: %dth iteration\n", *(int*)arg, i );
+//	sleep(1);
+    }
+    pthread_exit(0);  /* 쓰레드 종료 함수 */
+}
+
+void main( void )
+{
+    int i;
+    pthread_t threads[3]; /* 쓰레드 아이디를 위한 변수 */
+    
+    for ( i=0; i<3; i++ )  /* 쓰레드 생성 */
+        // TODO: 스레드 생성하기
+        pthread_create( &threads[i],                /* 쓰레드ID */
+                        NULL,                       /* 쓰레드 속성 */
+                        ( void* (*)(void*) )Thread, /* 쓰레드 시작 함수 */
+                        &thread_args[i] );          /* 생성된 쓰레드에 전달 인자 */
+    
+    pthread_exit(0); /*메인 쓰레드 종료 */
+}
+------------------------------------------------------------------------------
+2)동기화
+
+@세마포어
+종류 - 	이진
+	계수
+
+연산 -	initialize (create)
+	wait (pend)
+	signal (post)
+API
+sem_wait( sem_t * );  
+sem_trywait( sem_t * ); 
+sem_post( sem_t * );
+sem_getvalue( sem_t *, int * );
+sem_destroy( sem_t * );
+--------------------------------------------------------------------
+#include <stdio.h>
+#include <semaphore.h>
+#include <pthread.h>
+
+sem_t        sem;  /*TODO: semaphore variable - sem */
+pthread_t   task[3];
+int params[3]={1,2,3};
+int arg;
+//----------------------------------------
+void Thread(void *param) {
+    int i = 0;
+    int val;
+  
+    while(1) {
+        sem_wait( &sem ); /* TODO: obtains semaphore, reduce it by 1 */
+        arg=*((int *)param);
+        sem_post(&sem);
+	sleep(1);
+    }
+}
+//----------------------------------------
+void main( void )
+{
+    int i = 0, val;
+    sem_init( &sem, 0, 1); /* TODO: initialize unnamed semaphore */
+    for(i=0;i<3;i++)
+    	pthread_create( &task[i], NULL, (void*(*)(void*))Thread, &params[i] );
+
+    while(1){
+	sem_wait( &sem );
+	sem_getvalue( &sem, &val ); 
+	printf( "arg=%d: value = %d\n", arg ,val );
+	sem_post(&sem);
+	sleep(1);
+   }
+    
+}  
+-----------------------------------------------------------------------------------
+@뮤텍스
+소유권, 재귀적 접근(recursive access), 태스크 삭제 보호, 우선 순위 역전 회피 프로토콜
+
+역전회피
+pthread_mutexattr_setprotocol( pthread_mutexattr_t *, int protocol )
+protocol-	PTHREAD_PRIO_NONE
+		PTHREAD_PRIO_INHERIT   - 우선순위 계승
+		PTHREAD_PRIO_PROTECT   - 우선순위 상한
+pthread_mutex_setprioceiling( pthread_mutex_t *, prioceiling, &old_ceiling ) 
+
+API
+PTHREAD_MUTEX_INITIALIZER
+pthread_mutex_lock( pthread_mutex_t * )
+pthread_mutex_trylock( pthread_mutex_t * )
+pthread_mutex_unlock( pthread_mutex_t * )
+pthread_self()
+-----------------------------------------------------------------------------------
+#include <semaphore.h>
+#include <pthread.h>
+#include <sys/types.h>
+
+/* TODO: 뮤텍스 변수 선언 mutex, 선언과 동시에 초기화 */
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int val;
+int arg1 = 0, arg2 = 1;
+//-------------------------------------------
+void *Thread( void* arg ) 
+{
+    int i, j;
+    
+    for( i = 0; ; i++ ) {
+        /* TODO: mutex 잠그기 */
+        pthread_mutex_lock( &mutex );
+        val = *(int*)arg;
+        printf( "thread %d: %dth iteration: val = %d\n", *(int*)arg, i, val);
+        /* TODO: mutex 풀기 */
+        pthread_mutex_unlock( &mutex );
+        //for ( j=0; j<1000000; j++ );
+        sleep(1);
+    }
+}
+//-------------------------------------------
+int main( void ) {
+    pthread_t  thread1, thread2;
+    pthread_attr_t attr;
+    
+    struct sched_param param;
+    int policy;
+    
+    pthread_getschedparam( pthread_self(), &policy, &param );
+    param.sched_priority = 1;
+    policy = SCHED_RR;
+    pthread_setschedparam( pthread_self(), policy, &param );
+    pthread_attr_init( &attr );
+    pthread_attr_setschedpolicy( &attr, SCHED_RR );
+    
+    pthread_create( &thread1, &attr, (void*(*)(void*))Thread, &arg1 );
+    pthread_create( &thread2, &attr, (void*(*)(void*))Thread, &arg2 );
+    
+    pthread_exit(0);
+    return 0;
+}
+-----------------------------------------------------------------------------
+쓰레드 속성 변환
+#include <stdio.h>
+#include <pthread.h>
+
+
+int thread_args[3] = { 0, 1, 2 };
+//------------------------------------------------------------------------------
+void* Thread( void *arg )
+{
+    int i;
+    
+    for ( i=0; i<1000; i++ ){
+        printf( "thread %d: %dth iteration\n", *(int*)arg, i);
+        sleep(1);
+    }
+    pthread_exit(0);  
+}
+//------------------------------------------------------------------------------
+int main( void )
+{
+    int i;
+    pthread_t threads[3];
+    
+    /*쓰레드 속성지정을 위한 변수 */
+    pthread_attr_t  thread_attrs;
+
+    /*스케줄링 정택 지정을 위한 구조체 */
+    /* 라운드로빈 시간할당량 설정 */
+    struct sched_param  param;
+
+   
+    for ( i=0; i<3; i++ ) {
+        /* TODO: 쓰레드 속성 초기화 */
+        pthread_attr_init( &thread_attrs );
+  
+        /* TODO: 스케줄링 정책 속성을 라운드로빈으로 설정 */
+        pthread_attr_setschedpolicy( &thread_attrs, SCHED_RR );
+
+        /* TODO: 쓰레드 속성에서 스케줄링 파라메터를 param구조체로 읽어들임 */
+        pthread_attr_getschedparam( &thread_attrs, &param );
+
+        /* TODO: 생성할 쓰레드의 우선순위를 20로 설정 */
+        param.sched_priority = 20;
+
+        /* 설정한 시간 단위로 실행 한다 */
+       
+        /* TODO: 변경한 우선순위를 쓰레드 속성에 추가 */
+        pthread_attr_setschedparam( &thread_attrs, &param );
+
+        
+        pthread_create( &threads[i], 
+                        &thread_attrs, 
+                        ( void* (*)(void*) )Thread, 
+                        &thread_args[i] );
+    }
+    
+    pthread_exit(0); /*메인 쓰레드 종료 */
+}
+----------------------------------------------------------------------------------
+@조건변수
+API
+PTHREAD_COND_INITIALIZER
+pthread_cond_wait( pthread_cond_t *, pthread_mutex_t * )
+pthread_cond_timedwait( pthread_cond_t *, pthread_mutex_t *, const struct timespec * )
+pthread_cond_signal(  pthread_cond_t * )
+pthread_cond_broadcast( pthread_cond_t * )
+------------------------------------------------------------------------------
+#include <stdio.h>
+#include <pthread.h>
+
+pthread_t  thread;
+
+/* 뮤텍스 초기화 */
+pthread_mutex_t  mutex = PTHREAD_MUTEX_INITIALIZER;
+/* TODO: 조건 변수의 초기화 */
+pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
+
+/* 전역 변수 */
+int count = 0;
+//------------------------------------------------
+void* Thread ( void* arg ) {
+    
+    pthread_mutex_lock ( &mutex ); 
+    
+    /* TODO: count가 5가 될 때까지 기다림, 블록될 경우에는 뮤텍스를 푼다 */
+    while ( count < 5 ) {
+        printf( "count = %d: wait...\n", count );
+        pthread_cond_wait ( &cond, &mutex );
+    }
+    printf( "count = %d: condition true.\n", count );
+    
+    pthread_mutex_unlock ( &mutex );
+}
+//------------------------------------------------
+void main ( void ) {
+    int i;
+    pthread_create( &thread, NULL, (void*(*)(void*))Thread, NULL );
+    
+    for ( i = 0; i < 10; i++ ) {
+        pthread_mutex_lock( &mutex );
+
+        count++;
+        /* TODO: 쓰레드에 시그널 보내기 */
+        pthread_cond_signal( &cond );
+        printf( "condition signal %d\n", i );
+
+        pthread_mutex_unlock( &mutex );
+    }
+    pthread_exit(0);
+}

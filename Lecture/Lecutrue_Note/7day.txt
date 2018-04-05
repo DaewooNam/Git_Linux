@@ -1,0 +1,481 @@
+1. 입출력 표준 라이브러리
+
+FILE 구조체
+FILE Structure
+typedef  struct _iobuf
+{
+	int  _cnt;
+	unsigned  char *_ptr;
+	unsigned char *_base;
+	unsigned char _flag;
+	unsigned char _file;
+} FILE ;
+       
+       . _cnt: 버퍼에 남아있는 문자 수
+       . _ptr : _base가 가리키는 포인터에서 다음에 읽거나 쓸 문자의 위치
+       . _base : 스트림과 관련된 버퍼의 시작주소
+       . _flag : 읽기 ,쓰기 모드와 에러 상태등의 제어정보
+       . _file :   스트림과 연관된 file descriptor
+-----------------------------------------------------------------------------
+#include <stdio.h>
+FILE *fopen (const char *pathname, const char *type); 
+type : rt(텍스트 읽기), wt(텍스트 쓰기), at(텍스트 이어쓰기)
+	rb(이진 읽기), wb(이진 쓰기), ab(이진 이어쓰기)
+	r+(읽고 쓰기), w+(읽고 쓰기), a+(읽고 이어쓰기)
+------------------------------------------------------------------------------
+#include <stdio.h>
+
+main()
+{
+	FILE  *fp;
+	
+	if((fp = fopen("test.txt", "r")) != NULL)
+	{
+		printf("Success !\n");
+		printf("Opening \"test.txt\" in \"r\" mode !\n");
+	}
+	else 
+	{
+		perror("Error");
+		exit(-1); //프로세스 정상종료 (ex 0으로 나눌경우 비정상 종료)
+			  // -1의 값은 비정상종료 exit 값은 부모를 나타냄
+	}
+	fclose(fp);
+}
+---------------------------------------------------------------------------------
+#include <stdio.h>
+FILE *freopen (const char *pathname, const char *type, FILE *fp );
+-fp가 가리키는 스트림으로 파일 개방
+FILE *fdopen (int filedes, const char *type); //저 수준 open c library 사용 하지 못함
+-이미 열려진 file descriptor에 대해 표준 입출력 스트림으로 연결
+----------------------------------------------------------------------------------
+#include <fcntl.h>
+#include <stdio.h>
+main()
+{
+	char *fname = "test.txt";
+	FILE  *fp;
+
+	printf("First printf is on the screen.\n");	
+	if((fp = freopen(fname, "w", stdout)) == NULL) 
+	{
+		perror("freopen");
+		exit(-1);
+	}
+	printf("Second printf is in this file.\n");	
+}	
+-----------------------------------------------------------------------------------
+#include <fcntl.h>
+#include <stdio.h>
+main()
+{
+	char *fname = "test.txt";
+	int  fd;
+	FILE *fp;
+
+	if((fd = open(fname, O_RDONLY)) > 0) //file descriptor 값으로 반환
+		printf("Success!! \n File descriptor : %d\n",fd);
+	else
+	  printf("failed\n");
+	  
+	if(( fp = fdopen(fd,"r"))!= NULL)
+	  printf("fdopen() Success!!\n");
+	else
+	  printf("fdopen() failed\n");
+	  
+	fclose(fp);
+}	
+---------------------------------------------------------------------------------
+#include <stdio.h>
+int fclose ( FILE *fp );
+---------------------------------------------------------------------------------
+문자 한개 읽는 함수들
+#include <stdio.h>
+int getc (FILE *fp );
+int fgetc (FILE *fp );
+int getchar (void );
+----------------------------------------------------------------------------------
+읽어들인 문자를 원위치
+#include <stdio.h>
+int ungetc(int c, FILE *stream);
+----------------------------------------------------------------------------------
+test.txt
+123+45
+----------
+#include <stdio.h>
+main()
+{
+	int c, number = 0;
+	char op;
+	FILE  *fp;
+	
+	if((fp = fopen("test.txt", "r")) == NULL) 
+	{
+		perror("File open error");  
+		exit(-1);
+	}
+	
+	while(!feof(fp)) //end of file
+	{
+		while ((c = fgetc(fp)) != EOF && isdigit(c)) //isdigit 숫자 인지 확인
+			number = 10 * number + c - '0'; //아스키 코드 값을 이용한 
+	
+		if(c == '\n')
+			continue;
+				
+		fprintf(stdout,"Operand =>  %d\n", number);
+		number = 0;
+		
+		if(c != EOF)
+		{
+			ungetc(c,fp);
+			op = fgetc(fp);
+			fprintf(stdout,"Operator => %c\n",op);
+		}
+	}
+	fclose(fp);
+}
+	
+------------------------------------------------------------------------------------
+문자 한개 출력 함수
+#include <stdio.h>
+int putc (int c, FILE *fp );
+int fputc (int c, FILE *fp );
+int putchar (int c );
+-----------------------------------------------------------------------------------
+한라인 입력 함수
+#include <stdio.h>
+char *fgets (char  *buf, int  n, FILE *fp ); //
+char *gets (char *buf );
+-------------------------------------------------------------------------------------
+한라인 출력 함수
+#include <stdio.h>
+int fputs (const char  *str, FILE *fp );
+int  puts (const char *str);
+-------------------------------------------------------------------------------------
+./실행명 파일명
+#include <stdio.h>
+main (int argc,char *argv[])
+{
+	FILE  *fp;
+	char buf[256];
+	if((fp = fopen(argv[1], "w+")) == NULL)
+	{
+		perror("fopen error");	
+		exit(-1);
+	}
+	
+	fputs("Input String >> ", stdout);
+	gets(buf);			/* '\n' 제거 */
+	fputs(buf,fp);		/* '\n'이 없는 상태 */
+	rewind(fp);
+	fgets(buf, sizeof(buf), fp);	/* '\n'이 없는 상태 */
+	puts(buf);			/* '\n' 추가 */
+
+	fclose(fp);
+}
+-------------------------------------------------------------------------------------
+#include <stdio.h> //bineary 값들
+size_t fread (void *ptr, size_t  size, size_t  nobj, FILE *fp );
+size_t fwrite (const(값을 변하지 마) void *ptr, size_t  size, size_t  nobj, FILE *fp );
+-------------------------------------------------------------------------------------
+#include <stdio.h>
+
+struct student {
+	int sno;
+	char name[10];
+	int point;
+};
+
+main()
+{
+	struct student s1, s2;
+	FILE *fp;
+	
+	if((fp = fopen("student.dat", "w")) == NULL) { //data 영구적으로 보관 파일에 보관 (ram에 저장 되기 때문에)
+		perror("fopen error");
+		exit(-1);
+	}
+	printf("Input SNO >> ");
+	scanf("%d", &s1.sno);
+	printf("Input Name >> ");
+	scanf("%s", &s1.name);
+	printf("Input Point >> ");
+	scanf("%d", &s1.point);
+	if(fwrite(&s1, sizeof(struct student), 1, fp) != 1) {
+		perror("fwrite error");
+		exit(-1);
+	}
+	fclose(fp);	
+	
+	if((fp = fopen("student.dat", "r")) == NULL) {
+		perror("fopen error");
+		exit(-1);
+	}
+	if(fread(&s2, sizeof(struct student), 1, fp) != 1) {
+		perror("fread error");
+		exit(-1);
+	}
+	printf("\n NO        Name      Point\n");
+	printf("====================\n");
+	printf("%d       %s      %d\n", s2.sno, s2.name, s2.point);
+	fclose(fp);
+}	
+---------------------------------------------------------------------------------------
+rm student.dat
+touch student.dat
+
+#include <stdio.h>
+
+struct student {
+	int sno;
+	char name[10];
+	int point;
+};
+
+main()
+{
+	struct student data[30];
+	FILE *fp;
+	int cnt=0, menu, sno, i, search, flag=1;
+	if((fp = fopen("student.dat", "r")) == NULL) {
+		perror("fopen error");
+		exit(-1);
+	}
+
+	while(fread(&data[cnt], sizeof(struct student), 1, fp) == 1) {
+		cnt++;
+	}
+	fclose(fp);
+	
+	while(flag){
+		puts("메뉴\n1.추가 2.삭제 3.전체 출력 4.종료");
+		scanf("%d", &menu);
+		switch(menu){
+		case 1: 
+			printf("Input SNO >> ");
+			scanf("%d", &data[cnt].sno);
+			printf("Input Name >> ");
+			scanf("%s", data[cnt].name);
+			printf("Input Point >> ");
+			scanf("%d", &data[cnt].point);
+			cnt++;
+			break;
+		case 2:
+			printf("Input SNO >> ");
+			scanf("%d", &sno);
+			for(i=0;i<cnt;i++){
+				if(data[i].sno==sno){
+					search=i;
+					break;
+				}
+			}
+			if(i==cnt){
+				puts("삭제할 사람이 없다.");
+			}else{
+				for(i=search;i<cnt;i++){
+					data[i]=data[i+1];
+				}
+				cnt--;
+			}
+			break;
+		case 3:
+			printf("\n NO        Name      Point\n");
+			for(i=0;i<cnt;i++){	
+				printf("====================\n");
+				printf("%d       %s      %d\n", data[i].sno, data[i].name, 
+					data[i].point);
+			}
+		case 4:
+			if((fp = fopen("student.dat", "w")) == NULL) {
+				perror("fopen error");
+				exit(-1);
+			}
+			
+			fwrite(data, sizeof(struct student), cnt, fp);
+			flag=0;
+			fclose(fp);
+			break;
+		}
+	}
+	
+	
+}	
+------------------------------------------------------------------------------------------
+#include <stdio.h>
+long ftell (FILE *fp );
+int fseek (FILE *fp, long offset, int whence ); //SEEK_SET, SEEK_CUR, SEEK_END
+void rewind (FILE *fp);
+----------------------------------------------------------------------------------------
+#include <stdio.h>
+
+main()
+{
+    char *fname = "test.txt";
+    long fsize;
+    FILE *fp;
+    
+    if((fp=fopen(fname,"r"))==NULL){
+        printf("File Open Error\n");
+        exit(-1);
+    }
+    fseek(fp,0L,SEEK_END);
+    fsize = ftell(fp);
+    
+    printf("The size of <%s> is %ld byte.\n",fname,fsize);
+    exit(0);
+}
+----------------------------------------------------------------------------------------
+#include <stdio.h>
+
+main()
+{
+    char *fname = "test.txt";
+    long position;
+    int ch;
+    FILE *fp;
+    
+    if((fp=fopen(fname,"r"))==NULL){
+        printf("File Open Error\n");
+        exit(-1);
+    }
+    
+    printf(" Input number >> ");
+    scanf("%ld",&position);
+    
+    fseek(fp,position-1L,SEEK_SET);
+    ch = getc(fp);
+    printf("%ldth character => %c\n",position,ch);
+    
+    exit(0);
+}
+-----------------------------------------------------------------------------------------
+#include <stdio.h>
+
+main()
+{
+    char *fname = "test.txt";
+    long position;
+    FILE *fp;
+    
+    if((fp=fopen(fname,"r"))==NULL){
+        printf("File Open Error\n");
+        exit(-1);
+    }
+        
+    fseek(fp,10L,SEEK_CUR);
+    position = ftell(fp);
+    printf("Current position = %ld\n",position);
+    
+    rewind(fp);
+    position = ftell(fp);
+    printf("After rewind() position = %ld\n",position);
+    
+    exit(0);
+}
+---------------------------------------------------------------------------------------
+#include <stdio.h>
+int fgetpos (FILE *fp, fpos_t  *pos );      //현재 파일에서 읽고 쓰는 위치를 불러옴
+int fsetpos (FILE *fp, const fpos_t *pos ); //
+---------------------------------------------------------------------------------------
+#include <stdio.h>
+
+int main(void)
+{
+	FILE  *fp;
+	fpos_t position;
+	int i;
+
+	fp=fopen("sample.txt", "wt"); //t 생략 가능
+
+	for(i=0;i<100;i++)
+		putc('A',fp);
+
+	fgetpos(fp,&position);
+	printf("position: %ld\n",position);
+
+	rewind(fp);
+	fsetpos(fp,&position);
+	printf("position: %ld\n",position);
+
+	fclose(fp);
+
+	return 0;
+}
+--------------------------------------------------------------------------------------
+#include <stdio.h> 
+int ferror (FILE *fp);   // 비트 정보를 반환 시켜준다 
+int feof (FILE  *fp);    // 파일의 끝을 만나는지 확인 (true)
+void clearerr (FILE *fp);// 
+--------------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+
+main(int argc,char *argv[])
+{
+    FILE *fp;
+    int  ch;
+    
+    if((fp=fopen(argv[1],"r"))==NULL){
+        printf("File open error!!\n");
+        exit(-1);
+    }
+    
+    while(!feof(fp)){
+        ch = fgetc(fp);
+        fputc(ch,stdout);
+        
+        if(ferror(fp)){
+            printf("Error detected !!\n");
+            clearerr(fp);
+        }
+    }
+    fclose(fp);
+} 	
+----------------------------------------------------------------------------------------
+#include <stdio.h> //많이 사용하지 않음
+void  setbuf (FILE *fp, char *buf );
+int  setvbuf (FILE *fp, char *buf,  int  mode, size_t size );  mode->line buf ,full buf 설정
+---------------------------------------------------------------------------------------
+#include <stdio.h> //많이 사용함
+int  fflush (FILE *fp); buffer 내용 강제로 출력 view (강제로 buffer 제거 이때 data를 제거하는게 아니라 data 출력) network 통신에서 많이 사용
+------------------------------------------------------------------------------------
+형식화된 출력 함수
+#include <stdio.h>
+int printf (const char *format,…); //출력한 char 수 가 반환 … (ellipse notation)
+이값을 사용하면 가변길이의 parameter  
+int fprintf (FILE  *fp, const char *format,…);  //
+int sprintf (char  *buf ,const char *format,…); //메모리에 값을 저장(숫자와 문자를 조합 시킬수 있음 -> 정수 실수 문자열)
+-----------------------------------------------------------------------------------
+#include <stdarg.h>
+#include <stdio.h>
+int vprintf (const char *format, va_list  arg );
+int vfprintf (FILE  *fp, const char *format, va_list arg );
+int vsprintf (char  *buf ,const char *format, va_list  arg ); 
+--------------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdarg.h>
+
+int vpf(char *fmt,...)
+{
+	va_list  argptr; // 가변 인자 변수들을 저장
+	int cnt;
+	
+	va_start (argptr, fmt); //가변 format(type)
+	cnt = vprintf (fmt, argptr);
+	va_end (argptr);
+	return  cnt;
+}
+
+int main(void)
+{
+         int i = 30;
+         float f = 90.0;
+         char *s = "abc";
+         vpf("%d, %f, %s\n", i, f, s);
+}
+-------------------------------------------------------------------------------------
+#include <stdio.h>
+int scanf (const char *format,…);//표준입력 으로 부터 데이터를 읽어옴:
+int fscanf (FILE  *fp, const char *format,…); //fp로부터
+int sscanf (const char  *buf ,const char *format,…); //메모리로 부터 데이터를 읽어옴

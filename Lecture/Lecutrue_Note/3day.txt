@@ -1,0 +1,396 @@
+//고아 프로세스 => 최초 1번 프로세서의 자식으로 감 // 부모가 없어지면 자동으로 init process로 들어가게 됨 
+		-> 부모가 먼저 죽는것
+
+#include <sys/types.h>
+#include <wait.h>
+int main()
+{
+pid_t pid;
+printf("I'm the original process : pid = %d, ppid = %d\n", 
+					getpid(), getppid());
+pid =  fork();
+ 	
+if ( pid != 0 )  {    /* parent process */
+printf("I'm parent process : pid = %d, ppid = %d\n", 
+				getpid(), getppid());
+printf("my child process : pid = %d\n", pid);
+}
+else {  /* child process */
+sleep(5);
+printf("I'm child process : pid = %d, ppid = %d\n", 
+				getpid(), getppid());
+}
+ 	 /* parent & child  process */
+printf("pid %d terminates.. \n", getpid());  
+}
+
+
+
+-------------------------------------------------------------------------
+#include <sys/types.h> //좀비 프로세서 
+#include <wait.h>
+
+{
+    
+   pid_t pid;
+   pid = fork();
+   if ( pid != 0 )  { /* parent process */
+	while(1) sleep(1000);
+   }
+   else { /* child  process */
+	exit(42);
+   }
+}
+
+./zombie&
+ps -al
+kill 부모pid
+ps 
+-------------------------------------------------------------------------------
+#include <sys/types.h> //보통 양수로 사용 pid 값을 option 을 통해 결정할 수 있음 
+#include <sys/wait.h>
+pid_t waitpid(pid_t pid,int *statloc,int options); //종료한 자식의 번호
+pid
+    . == -1  : wait 함수와 동일한 기능
+    .   >   0 : 프로세스 ID가 pid인 프로세스의 종료 상태값을 리턴
+    . ==   0  : 호출 프로세스와 같은 프로세스 그룹에 있는 자식 프로세스중 
+                  어느하나 종료시  
+options -
+    . WNOHANG : pid인 프로세스가 종료되지 않았어도 바로 리턴(리턴 값 0)
+    . WUNTRACED : pid인 프로세스가 잠시 중단된 경우에 리턴
+                            WIFSTOPPED 매크로를 통해 확인
+----------------------------------------------------------------------------------
+int execl (char *path,char *arg0,char *arg1,...,char *argn,(char *)0);
+int execv (char *path,char *argv[]); //배열로 담아서 넣어 주느냐
+int execle (char *path,char *arg0,char *arg1,...,char *argn,(char *)0,char *envp[]);
+int execve (char *path,char *argv[],char *envp[]);
+int execlp (char *file,char *arg0,char *arg1,...,char *argn,(char *)0);
+int execvp (char *file,char *argv[]);
+    . l : 리스트 형태의 명령라인 인자(argv[0],argv[1],argv[2]…)
+    . v :벡터(vector) 형태의 명령 라인 인자(argv[])
+    . e :환경변수 인자(envp[])
+    . p : path정보가 없는 실행화일 이름
+-----------------------------------------------------------------------------------
+<./newpgm>
+#include<stdio.h>
+void main(int argc, char *argv[]){
+	int i;
+	for(i=0;i<argc;i++){
+		printf("arg1=%s\n", argv[i]);
+	}
+}   
+-----------------------------------------------
+ 
+   #include <stdio.h>
+
+　　main( )
+　　{
+　　　　printf("this is the original program\n");
+　　
+　　　　execl("./newpgm", "newpgm", "parm1", "parm2",
+　　　　　　 "parm3", (char *) 0 );
+　　　　　　
+　　　  printf("This line should never get printed\n");
+　　}
+----------------------------------------------------------------------------------
+#include <stdio.h>
+
+　　main( )
+　　{
+　　　　static char *nargv[ ]= {
+　　　　　　“newpgm", "parm1", "parm2", "parm3",(char *) 0 };
+　　　　　
+　　　　printf("this is the original program\n");　
+　　　 
+　　　    execv("./newpgm", nargv);
+
+　　　    printf("This line should never get printed\n");
+　　}
+------------------------------------------------------------------------------------
+        #include <stdio.h>
+
+　　main( )
+　　{
+　　　　static char *nargv[ ]= {"newpgm", "parm1", "parm2", "parm3",(char *) 0 };
+　　　　static char *nenv[ ] = {"NAME=VAL", "nextname=nextvalu", "HOME=/xy", (char *) 0 };
+
+    　　    printf("this is the original program\n");　
+　　　 
+　　  　  execve("./newpgm", nargv, nenv);
+　　　    /* execle("./newpgm", "newpgm", "parm1", "parm2","parm3", (char *) O, nenv); */
+
+　　　    printf("This line should never get printed\n");
+　    }
+--------------------------------------------------------------------------------------
+        #include <stdio.h>
+
+　　main( )
+　　{
+　　　　static char *nargv[ ]= {"newpgm", "parm1", "parm2", "parm3",(char *) 0 };
+
+　　　　printf("this is the original program\n");　
+　　　 
+ 　　　  execvp("newpgm", nargv);
+
+　 　　  /* execlp("newpgm", “newpgm”,"parm1", "parm2", "parm3",(char *) 0 ); */
+
+　　　   printf("This line should never get printed\n");
+　　}
+------------------------------------------------------------------------------------
+    main()
+　{
+　　
+　　　　if (fork() == 0) {
+　　　　　　execl("/bin/echo", "echo", "this is",
+　　　　　　　　"message one", (char *) 0 );
+　　　　　　printf("exec one failed");　
+　　　　　　exit(1);
+  　　　 } 
+　　　  
+　　　  printf("Parent program ending\n");
+　　}
+-----------------------------------------------------------
+#include <stdlib.h>
+
+int system(const char *cmdstring);
+--------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+
+
+int main()
+{
+    puts("system()전");
+    system("ls");
+    puts("system()후");
+} 	
+
+---------------------------------------------------------------------------------------
+signal 종류 //맞지 않은것도 있음
+#define SIGHUP  1               /* hangup */
+#define SIGINT  2               /* interrupt (rubout) */
+#define SIGQUIT 3               /* quit (ASCII FS) */
+#define SIGILL  4               /* illegal instruction (not reset when caught) */
+#define SIGTRAP 5               /* trace trap (not reset when caught) */
+#define SIGIOT  6               /* IOT instruction */
+#define SIGABRT 6               /* used by abort, replace SIGIOT in the future */
+#define SIGEMT  7               /* EMT instruction */
+#define SIGFPE  8               /* floating point exception */
+#define SIGKILL 9               /* kill (cannot be caught or ignored) */
+#define SIGBUS  10              /* bus error */
+#define SIGSEGV 11              /* segmentation violation */
+#define SIGSYS  12              /* bad argument to system call */
+#define SIGPIPE 13              /* write on a pipe with no one to read it */
+#define SIGALRM 14              /* alarm clock */
+#define SIGTERM 15              /* software termination signal from kill */
+#define SIGUSR1 16              /* user defined signal 1 */
+#define SIGUSR2 17              /* user defined signal 2 */
+#define SIGCLD  18              /* child status change */
+#define SIGPWR  19              /* power-fail restart */
+#define SIGWINCH 20             /* window size change */
+#define SIGURG  21              /* urgent socket condition */
+#define SIGPOLL 22              /* pollable event occured */
+#define SIGIO   SIGPOLL         /* socket I/O possible (SIGPOLL alias) */
+#define SIGSTOP 23              /* stop (cannot be caught or ignored) */
+#define SIGTSTP 24              /* user stop requested from tty */
+#define SIGCONT 25              /* stopped process has been continued */
+#define SIGTTIN 26              /* background tty read attempted */
+#define SIGTTOU 27              /* background tty write attempted */
+#define SIGVTALRM 28            /* virtual timer expired */
+#define SIGPROF 29              /* profiling timer expired */
+#define SIGXCPU 30              /* exceeded cpu limit */
+#define SIGXFSZ 31              /* exceeded file size limit */
+#define SIGWAITING 32           /* process's lwps are blocked */
+#define SIGLWP  33              /* special signal used by thread library */
+#define SIGFREEZE 34            /* special signal used by CPR */
+#define SIGTHAW 35              /* special signal used by CPR */
+#define SIGCANCEL 36            /* thread cancellation signal used by libthread */
+#define SIGLOST 37              /* resource lost (eg, record-lock lost) */
+----------------------------------------------------------------------------------------
+시스널 무시(ignore)
+     SIG_IGN => 모든 시그널을 받을 필요가 없음
+
+
+ 시스널 처리(catch) //signal 함수는 signal 값을 어떻게 처리할지를 결정(핸들러)
+     핸들러 등록 
+     #include <signal.h>
+     void (*signal(int signo, void (*func)(int)))(int); 
+     - 특정 시그널에 대한 핸들러를 등록하는 함수. => 시그널 (시그널 번호, 핸들러 함수의 주소)
+     signal(10, a);	//10번 시그널에 핸들러로 a()함수를 등록
+
+ 기본 처리(default)
+     종료
+     SIG_DFL
+----------------------------------------------------------------------------------------
+다른 프로세스에 시그널 전달 //중요해! (시그널을 쏘는 함수 -> 기본적으로 시그널을 받으면 죽기 때문에 kill)
+#include <sys/types.h>
+#include <signal.h>
+    
+int kill(pid_t pid, int sig); //process 번호,어떤 시그널을 사용할지 
+
+    - pid > 0   :  프로세스 ID가 pid인 프로세스에게 시그널을 전달한다.
+    - pid == 0 :  호출한 프로세스와 같은 프로세스 그룹 ID를 가지고
+	         있는 모든 프로세스에게 시그널을 전달한다.
+    - pid < 0   : pid의 절대값에 해당하는 프로세스 그룹 ID를 가지고
+                      있는 모든 프로세스에게 시그널을 전달한다.
+
+-----------------------------------------------------------------------------------------
+현재 프로세스에 시그널 발생
+#include <signal.h>
+int raise(int signo); //자기 자신한테 signal을 쏘게됨
+--------------------------------------------------------------------------------------
+#include <signal.h>
+void catchint(int signo)
+{
+    printf(" SIGINT Receive\n");
+ //   signal(SIGINT,SIG_DFL);
+}  
+
+main()
+{
+    signal(SIGINT,(void *) catchint); sigint -> ctrl+c
+    
+    printf("sleep call #1\n");      sleep(1);
+    printf("sleep call #2\n");      sleep(1);
+    printf("sleep call #3\n");      sleep(1);
+    printf("sleep call #4\n");      sleep(1);
+    printf("Exiting");
+    exit(0);
+}
+--------------------------------------------------------------------------------------
+#include <signal.h>
+#include <stdio.h>
+
+void handler(int sig){
+    printf("signal no(%d) Received\n",sig);
+}
+
+main()
+{  
+
+    if(signal(SIGUSR1,handler)==SIG_ERR)    {
+        fprintf(stderr,"cannot set USR1\n");
+        exit(1);
+    }                
+    if(signal(SIGUSR2,handler)==SIG_ERR)  {
+        fprintf(stderr,"cannot set USR2\n");
+        exit(1);
+    }
+    for(;;)       pause(); //시그날이 날라 올때까지 뭠춰 있다.ㅏ
+} 
+
+kill -USR1 PID
+kill -USR2 PID
+-----------------------------------------------------------------------------------
+ <sig_parent.c>
+#include <signal.h>
+#define NUMCHILD 3
+main(int argc, char *argv[])
+{
+  int pid, chpid[NUMCHILD];
+  int i, status;
+
+  for(i=0;i<NUMCHILD;i++)  {
+      if((pid=fork())==0)
+            execlp("./sig_child","./sig_child",(char *)0); //프로세스 코드 변환
+      chpid[i] = pid;
+  }
+  printf("sig_parent : %d child process run\n",NUMCHILD);
+  sleep(10);
+  
+  for(i=0;i<NUMCHILD;i++)
+      kill(chpid[i],SIGINT);
+}
+<sig_child.c>
+#include <signal.h>
+void sig(int sig) {
+　　printf(“child die(%d)\n”,getpid());
+}
+main() {
+　　signal(SIGINT,sig);
+    pause(); // 시그널을 기다림
+}
+--------------------------------------------------------------------------------------
+#include <unistd.h>
+    
+	unsigned int alarm(unsigned int second); //시간이 흐른뒤에 알람 시간을 보낸다 =>시그널 번호가 정해져 있음
+-------------------------------------------------------------------------------------
+#include <unistd.h>
+	void pause(void);
+-----------------------------------------------------------------------------------
+#include <signal.h>
+#include <unistd.h>
+void alm(int signo)
+{
+    printf("SIGALRM Receive");
+}  
+
+void main()
+{
+    signal(SIGALRM, alm); //sigalrm 호출 하면 alm 함수 호출
+    alarm(10); //10초 뒤에 자기 자기 자신한테 arlam 시그널을 날림
+    printf("process id pause\n");
+    pause();
+    printf("process is wakeup\n");
+}
+------------------------------------------------------------------------------------
+시그널 마스킹 관련 함수 //마스킹 set을 확인 
+#include <signal.h>
+
+int sigemptyset(sigset_t *set); //0으로 만들어줌
+int sigfillset(sigset_t *set);  //
+int sigaddset(sigset_t *set, int signo); //마스킹 변수
+int sigdelset(sigset_t *set, int signo);
+int sigismember(const sigset_t *set, int signo); //signal 확인하는 함수
+--------------------------------------------------------------------------------------
+#include <signal.h>
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oset); // 새값을 들어갈 주소 , 변경되기 전에 값에 주소
+how -
+. SIG_BLOCK : set 인자로 지정된 시그널들을 시그널 마스크에 추가 // 동작 모드를 설정
+. SIG_UNBLOCK : set 인자로 지정된 시그널들을 시그널 마스크에서 제외
+. SIG_SETMASK : set 인자로 시그널 마스크를 대체
+-----------------------------------------------------------------------------------
+//signal mask 값들을 우리가 설정해 줄 수 있음
+#include        <stdio.h>
+#include        <signal.h>
+
+void show_mask()
+{
+        sigset_t sigset;
+	
+	//마스킹 정보 읽기
+        if (sigprocmask(0, NULL, &sigset) < 0)
+                printf("sigprocmask error");
+
+        if (sigismember(&sigset, SIGINT))       printf("SIGINT ");
+        if (sigismember(&sigset, SIGQUIT))      printf("SIGQUIT ");
+        if (sigismember(&sigset, SIGUSR1))      printf("SIGUSR1 ");
+        if (sigismember(&sigset, SIGALRM))      printf("SIGALRM ");
+
+        printf("\n");
+        
+}
+int main(void)
+{
+        sigset_t newmask, oldmask; //maksking 변수 타입
+
+        sigemptyset(&newmask);
+        sigaddset(&newmask, SIGQUIT);
+
+        /* add SIGQUIT signal to blocked signal list */
+        if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0) //하나 더 추가해라
+                printf("sigprocmask error");
+
+        show_mask();
+
+        /* restore previous signal mask */ 
+        if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
+                printf("sigprocmask error");
+
+        exit (0);
+}
+
+
+
+

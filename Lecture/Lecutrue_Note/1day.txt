@@ -1,0 +1,261 @@
+vi /etc/pam.d/gdm  
+auth required pam_succeed_if.so user != root quiet
+을
+auth required pam_succeed_if.so user != noname quiet
+로 바꿔줘야 한다.
+ 
+cd /etc/yum/repos.d
+fedora.repo
+fedora-updates.repo
+-> mirrorist http에서 s값 삭제
+-> enalbed 1 로 변환
+
+cd /usr/mySrc 작업 공간
+mkdir mySrc
+source 작업 하는곳
+
+yum install gcc
+-----------------------------------------------------------------
+*gcc 옵션 (complie)
+ -o :오브젝트 파일명 지정
+ -I(대문자 아이) : 헤더파일을 검색하는 디렉토리 목록 추가 (라이브러리 끌어다 쓸때)
+ -L : 라이브러리를 검색하는 디렉토리 목록 추가
+ -l : 라이브러리 파일을 컴파일 시 링크 (complie)
+ -g : 바이너리 파일에 표준 디버깅 정보 포함 (팔때 rom에 크기를 줄일수 있음-g 옵션을 지움)
+ -O[영어 대문자](0~3) : 컴파일 코드 최적화 (여기서 O2가 많이 사용 O3의 경우 외곡이 심함)
+ -static : 정적 라이브러리 링크
+
+<test1.c>
+#include<stdio.h>
+#include"a.h"
+
+void func1();
+void func2();
+void main(){
+   printf("test1\n");
+   func1();
+   func2();
+}
+
+<test2.c>
+#include<stdio.h>
+#include"a.h"
+#include"b.h"
+
+extern void func1(){
+   printf("test2\n");
+}
+
+<test3.c>
+#include<stdio.h>
+#include"c.h"
+#include"b.h"
+
+extern void func2(){
+   printf("test3\n");
+}
+
+touch a.h
+touch b.h
+touch c.h
+
+gcc -c test1.c
+gcc -c test2.c
+gcc -c test3.c
+gcc -o test test1.o test2.o test3.o
+./test
+
+
+*make 만들기
+대상 : 의존성 정의
+	명령
+
+ex>vi makefile
+
+#실행파일 생성-주석 (변수이름 함수이름 파일명 중요!) #이 주석
+newTest:test1.o test2.o test3.o (위 내용들을 묶어서 만들꺼다)
+	gcc -o newTest test1.o test2.o test3.o (이때 TAB 을 이용해 만들기 위한 명령어 사용)
+test1.o:test1.c a.h (head 파일은 굳이 사용할 필요 없음)
+	gcc -c test1.c
+test2.o:test2.c a.h b.h
+	gcc -c test2.c
+test3.o:test3.c c.h b.h
+	gcc -c test3.c
+
+#컴파일 과정에서 발생한 불필요한 파일 제거 (전체 선택 : rm *.o)
+clean:
+	rm test1.o test2.o test3.o
+
+명령라인
+make
+make clean
+
+*makefile에 매크로 활용
+매크로 정의는
+매크로이름 = 값
+
+sample>
+#매크로 정의 (반복을 최소화)
+OBJF = hello1.o hello2.o hello3.o
+#소스
+newtest2: $(OBJF)
+	gcc -o newtest2 $(OBJF)
+hello1.o: hello1.c a.h
+	gcc -c hello1.c
+hello2.o: hello2.c
+	gcc -c hello2.c
+hello3.o: hello3.c
+	gcc -c hello3.c
+clean: 
+	rm $(OBJF)
+
+*내부 매크로
+$@ : 현재 목표 파일의 이름
+$* : 확장자를 제외한 현재 목표 파일 이름
+$< : 현재 필수 조건 파일 중 첫 번째 파일 이름
+$? : 현재 대상보다 최근에 변경된 필수 조건 파일 이름
+$^ : 현재 모든 필수 조건 파일
+OBJF = test1.o test2.o test3.o
+hello: $(OBJF)
+	gcc -o $@ $^
+hello1.o: hello1.c a.h
+	gcc -c $*.c
+hello2.o: hello2.c
+	gcc -c $*.c
+hello3.o: hello3.c
+	gcc -c $*.c
+clean:
+	rm $(OBJF)
+
+*접미사 규칙
+OBJF = test1.o test2.o test3.o
+hello: $(OBJF)
+	gcc -o $@ $(OBJF)
+.c.o:
+	gcc -c $(CFLAGS) $<      (CFLAGS 값은 없어도 됨) 컴파일시 옵션을 추가 해 줄수 있다.
+clean:
+	rm $(OBJF)
+===============================================================
+실행
+#make CFLAG="-g"
+
+*make 옵션
+-f : makefile나 Makefile 다른 이름의 make파일을 실행
+     (make 파일명을 사용자 지정) //이름변경시 사용 하지만 잘 사용 하지 않음
+-n : make가 실행하는 명령을 출력만 하고 실행안
+-W파일이름 : 이름의 파일이 변경된 것처럼 실행
+-s : make가 명령어를 출력 안하고 실행
+-r : make의 모든 내장 규칙을 사용할 수 없다.
+-d : make 실행시 디버깅 정보도 같이 출력
+-k : 한 대상을 구성하는 데 실패해도 다음 대상을 계속 구성 (끝까지 complie 하자)
+
+
+
+*gdb(GNU 디버거)
+컴파일시 -g 옵션 설정
+#gdb 실행파일명 -디버깅 모드로 변환
+(gdb)quit - 디버깅 모드 종료
+
+디버깅 테스트 소스
+<debug1.c>
+#include<stdio.h>
+int sum(int i);
+void main(){
+   printf("%d\n", sum(4));
+}
+int sum(int i){
+   if(i==1)
+	return 1;
+   else
+	return i+sum(i-1);
+}
+
+gcc -g -o debug1 debug1.c
+
+gdb debug1
+(gdb)quit
+
+명령어 첫글자+tab : 첫글자로 시작하는 명령어 자동 검색
+help : gdb 설명
+
+list (라인 넘버): 소스출력
+list 4,7
+list 함수명
+
+run : 디버깅 모드에서 실행
+<debug2.c>
+#include<stdio.h>
+void main(int argc, char *argv[]){
+   int i;
+   for(i=0;i<argc;i++){
+	printf("%s\n", argv[i]);
+   }
+}
+
+./debug2 aaa bbb ccc
+
+
+gcc -g -o debug2 debug2.c
+gdb debug2
+(gdb)run aaa bbb ccc
+
+whatis i: i의 데이터 타입
+print i:변수 i의 값
+set variable i=2	//변수값 할당
+
+break 문장번호 : 해당 라인에 정지점 설정
+break 함수이름 : 해당 함수 시작점에 정지점 설정
+break 문장번호 또는 함수이름 if조건 : 그 라인에서 if를 만족하면 
+   정지
+info break:현재 설정된 정지점 목록 출력
+<실습>
+<debug3.c>
+#include<stdio.h>
+int arr[10];
+int sum_all(int c);
+
+void main(){
+   int i;
+   for(i=0;i<5;i++){		//7
+	printf("숫자입력:");	//8
+	scanf("%d", &arr[i]);
+   }
+   printf("sum:%d\n", sum_all(5));
+}
+int sum_all(int c){
+   int sum=0, i;
+   if(c>10)
+	return 0;
+   else
+	for(i=0;i<c;i++){
+	   sum+=arr[i];
+	}
+   return sum;
+}
+
+(gdb)break 7
+(gdb)break 8 if i==0
+(gdb)break sum_all
+(gdb)info break
+(gdb)run
+(gdb)whatis i
+(gdb)print i
+(gdb)continue
+
+delete 라인넘버: 해당 라인에 설정된 정지점 제거
+delete : 정지점 전체 제거
+step : 단계별 실행. 함수를 만나면 함수로 들어가 한줄씩 실행
+next : 단계별 실행. 함수를 만나면 함수를 건너뜀
+
+
+
+
+
+
+
+
+
+
+
+
+

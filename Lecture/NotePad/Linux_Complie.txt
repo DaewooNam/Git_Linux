@@ -1,0 +1,12 @@
+gcc -c addMember.c
+gcc -c main.c
+gcc -o addr addMember.o main.o
+
+ls -all
+-swp ªË¡¶
+rm name.swp;
+
+./ad
+
+
+cd:

@@ -1,0 +1,352 @@
+1. File System 특징
+    - 트리 구조
+    - 터미널, 프린터, 디스크 등 모든 주변 장치들도 하나의 *파일로 취급한다.
+    - 아스키 파일과 이진 파일을 동등하게 취급한다.
+    - 모든 파일은 허가모드를 갖는다.
+2. File System 구조
+	| partition | partition | partition |
+		    |___________|
+                          |
+
+        | BootBlock | SuperBlock | inode List | Data Block(실제 값이 저장) |
+
+Super Block
+
+- 파일 시스템 크기
+
+- 파일 시스템내의 자유 블록의 수
+
+- 파일 시스템내에서 사용 가능한 자유 블록의 리스트
+
+- i-node 리스트의 크기
+
+- 파일 시스템내의 사용 가능한 i-node의 수
+
+- 파일 시스템내의 사용 가능한 i-node의 리스트
+
+각 i-node가 갖는 정보
+    . 소유자 ID, 파일 유형, 파일 접근허가, 파일 접근시간
+    . 링크수 . 파일 데이터의 주소 . 파일 크기
+File Descriptor Table
+     - 개별 프로세스 마다 존재(프로세스와 같은 Lifetime)
+     - 항목 구성
+        . File descriptor
+        . Flag
+        . File Table Pointer
+
+File Table
+     - 파일 시스템에 하나
+     - 항목 구성
+        . 참조계수(Reference Count)
+        . 파일의 현재 Offset
+        . I-node Table을 가리키는 포인터
+        . 파일 상태 Flag
+------------------------------------------------------------------------------------
+3. 입출력 System Call
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h> //oflag 사용
+int open ( const char *pathname, int oflag);
+int open ( const char *pathname, int oflag, mode_t  mode);
+oflag : open의 목적
+           . O_RDONLY : 읽기 전용
+           . O_WRONLY : 쓰기 전용
+           . O_RDWR : 읽기, 쓰기 가능
+
+    . O_APPEND : 모든 쓰기 작업은 파일의 끝에서 수행된다.
+           . O_CREAT : 파일이 없을 경우 파일을 생성한다.
+           . O_EXCL :  O_CREAT시 파일이 있는 경우에 error를 발생시킨다.
+           . O_TRUNC : 파일이 있는 경우에 기존 파일을 지운다.
+           . O_NONBLOCK : blocking I/O를 nonblocking 모드로 바꾼다.
+           . O_SYNC : 매 쓰기 연산마다 디스크  I/O가 발생하도록 설정한다.
+
+mode : 파일의 접근권한
+     - 새로운 파일 생성시에만 사용(O_CREAT)
+--------------------------------------------------------------------------------------
+#include <fcntl.h>
+main() 
+{
+	char *fname = "test.txt";
+	int fd;
+
+	fd = open(fname, O_RDONLY); 
+	if (fd > 0)
+	{
+		printf("Success\n FileName : %s, fd : %d\n",fname,fd);
+		close(fd);
+	}
+ 	else 
+	     perror("open failed\n");
+}
+-------------------------------------------------------------------------------------
+#include <sys/types.h> //자주 사용 안함
+#include <sys/stat.h>
+#include <fcntl.h>
+       int creat ( const char *pathname,  mode_t  mode ); 
+
+mode : 파일의 접근권한
+--------------------------------------------------------------------------------------
+#include <fcntl.h> 
+main() 
+{
+	char *fname = "test.txt";
+	int fd;
+
+	fd = creat(fname, 0666); (이게 무엇을 하는 것이지?)
+	if (fd < 0)
+		perror("creat( )");
+        else{
+	     printf("Success!\n Filename :%s, fd :%d\n", fname, fd);
+	     close(fd);
+	}
+}
+--------------------------------------------------------------------------------------
+#include <unistd.h>
+int close(int fd);
+--------------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <unistd.h>
+off_t lseek(int fildes, off_t offset, int whence);  //SEEK_SET, SEEK_CUR, SEEK_END cur 값 은 long으로 지정 되어 잇음
+--------------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+main()
+{
+	char *fname = "test.txt";
+	int fd;
+	off_t fsize;
+
+	if((fd=open(fname, O_RDONLY)) < 0)
+	{
+		perror("open( )");
+		exit(-1);
+	}
+	fsize = lseek(fd, 0, SEEK_END);
+	printf("The size of <%s> is %lu bytes.\n", fname, fsize); (%u => unsinged int) //0부터 fsize 값이 반환 그리고 모르는 임의값 하나 있음
+	exit(0);
+}
+-------------------------------------------------------------------------------------
+#include <unistd.h>
+ssize_t  read (int filedes,  void *buf, size_t nbytes);
+-------------------------------------------------------------------------------------
+#include <fcntl.h>
+main()
+{
+	int fd, int linecnt =0;
+	char c;
+	char *fname = "test.txt";
+		
+	if((fd=open(fname, O_RDONLY)) < 0){
+		perror("open( )");
+		exit(-1);
+	}
+        for( ; ; ){
+	    if (read(fd, &c, 1) > 0){
+		if(c=='\n')    	    linecnt ++ ;
+ 	    }else
+		    break;
+	}
+	printf("Total line : %d\n", linecnt);
+	exit(0);
+}
+-------------------------------------------------------------------------------------
+#include <unistd.h>
+ssize_t  write (int filedes,  const void *buf, size_t nbytes);
+-----------------------------------------------------------------------------------
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+
+main()
+{
+	char *fname = "test2.txt";
+	int fd, num=0;
+	char buf[255];
+	
+	fd = open(fname, O_WRONLY);
+	if(fd<0){
+		printf("file open error");
+		exit(1);
+	}
+	while(1){
+		fgets(buf, 255, stdin);
+		num=strlen(buf);
+		if(!strncmp(buf, "end", 3)){
+			break;
+		}
+		write(fd, buf, num);
+	}
+	close(fd);
+}
+-------------------------------------------------------------------------------------
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+
+main()
+{
+	char *fname = "test.txt";
+	int fd1, fd2, cnt;
+	char buf[30];
+	
+	fd1 = open(fname, O_RDONLY);
+	fd2 = open(fname, O_RDONLY);
+	if(fd1 < 0 || fd2 < 0) {
+		perror("open( )");
+		exit (-1);
+	}
+	cnt = read(fd1, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd1's first printf : %s\n", buf);
+	lseek(fd1, 1, SEEK_CUR);
+	cnt = read(fd1, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd1's second printf : %s\n", buf);
+	cnt = read(fd2, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd2's first printf : %s\n", buf);
+	lseek(fd2, 1, SEEK_CUR);
+	cnt = read(fd2, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd2's second printf : %s\n", buf);
+
+	exit(0);
+} // 하나의 프로세서에서 a.txt을 2번 
+------------------------------------------------------------------------------------
+/* 프로그램 A */
+#include <fcntl.h>
+
+main()
+{
+    int fd;
+    char c;
+    
+    if((fd=open("test.txt",O_RDONLY))<0)
+    {
+        perror("open");
+        exit(0);
+    }
+    for(;;)
+    {
+        if(read(fd,&c,1)>0)      
+		putchar(c);
+        else         
+		break;
+    }
+    exit(0);
+} 
+/* 프로그램 B */
+#include <fcntl.h>
+main()
+{
+	int fd, int linecnt =0;
+	char c;
+	char *fname = "test.txt";
+	
+	if((fd=open(fname, O_RDONLY)) < 0)	{
+		perror("open( )");
+		exit(-1);
+	}
+	for( ; ; ){
+	     if (read(fd, &c, 1) > 0)  {
+		if(c=='\n')     	  
+			linecnt ++ ;
+ 	     }else          
+		break;
+	}
+	printf("Total line : %d\n", linecnt);
+	exit(0);
+}	
+------------------------------------------------------------------------------------
+#include <unistd.h>
+int  dup (int filedes);
+int  dup2 (int filedes , int newfiledes); //방향 전환 -> 출력의 방향의 전환
+--------------------------------------------------------------------------------------
+
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+main()
+{
+	char *fname = "test.txt";
+	int fd1, fd2, cnt;
+	char buf[30];
+	
+	fd1 = open(fname, O_RDONLY);
+	if(fd1 < 0) {
+		perror("open( )");
+		exit (-1);
+	}
+	fd2 = dup(fd1);
+	cnt = read(fd1, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd1's printf : %s\n", buf);
+	lseek(fd1, 1, SEEK_CUR);
+	cnt = read(fd2, buf, 12);
+	buf[cnt] = '\0';
+	printf("fd2's printf : %s\n", buf);
+}
+----------------------------------------------------------------------------------
+#include <fcntl.h>
+main()
+{
+	char *fname = "test.txt";
+	int  fd;
+
+	if((fd = creat(fname, 0666)) < 0) { //그룹 소유자
+		perror("creat( )");
+		exit(-1);
+	}
+	printf("First printf is on the screen.\n");	//터미널에 출력
+	dup2(fd,1);		//close(1); dup(fd);
+	printf("Second printf is in this file.\n");	//test.txt에 출력	
+}
+---------------------------------------------------------------------------------------
+#include <sys/types.h> //많이 사용
+#include <fcntl.h>
+#include <unistd.h>
+int fcntl(int fd, int cmd);
+int fcntl(int fd, int cmd, long arg);
+
+Command ? 수행할 기능의 종류
+
+. F_DUPFD : 파일 디스크립터를 복사. 
+. F_GETFD : 파일 디스크립터의 플래그를 반환(현재는 FD_CLOEXEC만 사용)
+. F_SETFD : 파일 디스크립터의 플래그를 설정 (FD_CLOEXEC or 0)
+. F_GETFL : 파일 테이블에 저장되어 있는 파일 상태 플래그를 반환
+. F_SETFL : 파일 상태 플래그의 설정(O_APPEND, O_NONBLOCK, O_SYNC 등을 지정)     
+--------------------------------------------------------------------------------------
+#include <fcntl.h>
+main()
+{
+	char *fname = "test.txt";
+	int fd, newfd;
+	int flag;
+	
+	if((fd = open(fname, O_RDWR | O_APPEND)) < 0)
+        {
+		perror("open( )");
+		exit(-1);
+	}
+	
+        flag = fcntl(fd, F_GETFL, 0);
+	if (flag & O_APPEND)
+		printf("fd: O_APPEND flag is set. \n");
+	else	
+		printf("fd: O_APPEND flag is NOT set. \n");
+	flag = fcntl(fd, F_GETFD, 0);
+	if (flag & FD_CLOEXEC)
+		printf("fd: FD_CLOEXEC flag is set. \n");
+	else	
+		printf("fd: FD_CLOEXEC flag is NOT set. \n");
+
+
+	fcntl(fd, F_SETFD, FD_CLOEXEC);
+	flag = fcntl(fd, F_GETFD, 0);
+	if (flag & FD_CLOEXEC)
+		printf("fd: FD_CLOEXEC flag is set. \n");
+	else	
+		printf("fd: FD_CLOEXEC flag is NOT set. \n");
+}	
+-------------------------------------------------------------------------------------

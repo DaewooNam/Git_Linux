@@ -1,0 +1,319 @@
+#include <unistd.h>
+ 
+int main(int argc, char *argv[])
+{
+        int i;
+ 
+        for (i = 0; i < argc; i++)
+                printf("argv[%d]: %s\n", i, argv[i]);
+        
+        exit(0);
+}
+----------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+ 
+extern **environ; //다른 파일 선언 되어 있는것을 빌려옴 (환경변수)
+int main()
+{
+        int i;
+ 
+        for (i = 0; environ[i] != NULL; i++)
+                printf("environ[%d]: %s\n", i, environ[i]);
+}
+---------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+extern **environ;
+char glob_var[]="HOBBY=swimming";       /* global variable */
+void addone()
+{
+        char auto_var[10];              /* automatic variable */
+        strcpy(auto_var, "LOVER=wk");
+        putenv(auto_var); //지역 변수로 들어가면 안들어감
+}
+int main()
+{
+        int i;
+        /* show inherited environment variables */
+        for (i = 0; environ[i] != NULL; i++)
+                printf("environ[%d]: %s\n", i, environ[i]);
+        
+        putenv(glob_var); /* put two new environment variables */
+        addone();
+        printf("My hobby is %s\n", getenv("HOBBY")); //환경변수에 이 값과 일치 하는 문자열 반환
+        printf("My lover is %s\n", getenv("LOVER"));
+        strcpy(glob_var+6, "fishing"); /* modify environment variable */
+        for (i = 0; environ[i] != NULL; i++) /* show result */
+                printf("environ[%d]: %s\n", i, environ[i]);
+}
+---------------------------------------------------------------------------
+- 모든 프로세스는 음이 아닌 정수인 유일한 프로세스 ID를 가진다.
+
+getpid()   : 호출한 프로세스의 프로세스 ID 리턴
+getppid()  : 호출한 프로세스의 부모 프로세스 ID 리턴
+
+getuid()   : 호출한 프로세스의 실제 사용자 ID(real user ID) 리턴
+geteuid()  : 호출한 프로세스의 유효 사용자 ID(effective user ID) 리턴 // 소유자 ID 
+getgid()   : 실제 그룹 ID(real group ID) 리턴 //그룹의 번호
+getegid()  : 유효 그룹 ID(effective group ID) 리턴
+-----------------------------------------------------------------------------
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+ 
+int main()
+{
+        pid_t pid; //int 변수에 저장 해도 상관 없음
+ 
+        sleep(5);  // 프로세스 대기 상태로 만들어줌
+        printf("\nProcess ID       = %d\n", pid = getpid());
+        printf("Parent process ID  = %d\n", getppid());
+        printf("Real User ID       = %d\n", getuid()); //root 값은 0으로 반환
+        printf("Effective User ID  = %d\n", geteuid());
+        printf("Real group ID      = %d\n", getgid());
+        printf("Effective group ID = %d\n", getegid());
+}
+-----------------------------------------------------------------------------------
+#include <stdio.h> //중요
+#include<unistd.h>
+#include<sys/types.h>
+
+main()
+{
+    pid_t pid;
+    printf("pid = %d, ppid = %d\n",getpid(),getppid()); // 현재 프로세스의 번호 
+    
+    pid = fork(); //자식 프로세스 생성 //포크에 반환값 0 자식,포크에 반환값이 0보다 크면 부모
+     
+
+    if(pid<0){
+	printf("프로세스 생성실패\n");
+    }else if(pid==0){
+	printf("자식 프로세스\n");
+    }else{
+	printf("부모 프로세스\n");
+    }
+    printf("pid = %d, ppid = %d\n",getpid(),getppid());
+}
+-----------------------------------------------------------------------------------
+#include <sys/types.h> //자식 프로세스에서 값을 변환시 부모 프로세서 와 독립 프로세서의 특징(메모리 분리)
+#include <unistd.h>
+
+static int glob = 6;        /* external variable in initialized data */
+char buf[] = "a write to stdout\n";
+
+int main(void)
+{
+        int     var;        /* automatic variable on the stack */
+        pid_t   pid;
+
+        var = 88;
+        if (write(STDOUT_FILENO, buf, sizeof(buf)-1) != sizeof(buf)-1) //stdout_fileno = 1
+                printf("write error");
+        printf("before fork\n");        /* we don't flush stdout */
+
+        if ( (pid = fork()) < 0)       
+		printf("fork error");
+        else if (pid == 0) {            /* child */
+                glob++;                 /* modify variables */
+                var++;
+        } else
+                sleep(2);               /* parent */
+
+        printf("pid = %d, glob = %d, var = %d\n", getpid(), glob, var);
+        exit(0);
+}
+---------------------------------------------------------------------------
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <string.h>
+
+static int global = 6;        
+char *filename = "temp1";
+char buf[40];
+
+int main(void)
+{
+        int fd,pid;
+        int     local;     
+
+        local = 88;
+        if((fd = open(filename,O_RDWR | O_CREAT,0777))<0){
+            fprintf(stderr,"Error, cannot create file\n");
+            exit(0);
+        }
+        sprintf(buf,"a stdout by write function\n");
+        write(STDOUT_FILENO, buf, strlen(buf);
+        
+        printf("before fork\n");        /* we don't flush stdout */
+        if ((pid = fork()) < 0)
+                printf("fork error");
+        else if (pid == 0) 
+       { 
+                global++;                 /* modify variables */
+                local++;
+        } 
+        else   
+                sleep(2);               /* parent */
+
+        sprintf(buf,"pid = %d, global = %d, local = %d\n", getpid(), global, local);
+        write(fd,buf,strlen(buf));
+        exit(0);
+}
+vi temp1
+cat temp1
+-----------------------------------------------------------------------------------
+#include <stdio.h>
+main()
+{
+        char first,last,ch;
+        int pid,i;
+    
+        /* parent */
+        if((pid=fork())>0)
+        {
+                first = 'A';
+                last  = 'Z';
+        }
+        else if(pid==0)
+        {
+                first = 'a';
+                last  = 'z';   
+               
+        }
+    
+        for(ch=first;ch<=last;ch++)
+        {
+                write(1,&ch,1);
+		sleep(1);
+        }
+} 
+-------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <unistd.h>
+
+static int glob = 6;        /* external variable in initialized data */
+
+int main(void)
+{
+        int     var;        /* automatic variable on the stack */
+        pid_t   pid;
+
+        var = 88;
+       printf("before fork\n");  
+
+        if ( (pid = vfork()) < 0)
+                printf("fork error");
+        else if (pid == 0) 
+        { 
+                glob++;                 
+                var++;
+                _exit(0);
+        } 
+        printf("pid = %d, glob = %d, var = %d\n", getpid(), glob, var);
+        exit(0);
+}
+-----------------------------------------------------------------------------
+프로세스 종료
+
+정상 종료
+     - main 함수로부터의 리턴 (exit 함수를 호출하는 것과 동일)
+     - exit 또는 _exit 함수의 호출 (표준 C 라이브러리와 시스템 호출)
+     - 종료 상태 값을 명시적으로 지정
+
+비정상 종료
+     - 자신이 abort 시스템 호출 (SIGABRT 시그널)
+     - 커널이 발생한 시그널(signal)에 의한 종료 
+        (0으로 나눈 경우, 잘못된 메모리 참조 등)
+     - 커널이 종료 상태값을 생성 =>
+------------------------------------------------------------------------------
+pid_t wait(int *statloc); // 부모 process에서 실행 /statloc 자식의 종료 상태값
+
+// 한놈만 끝나도 끝나
+// 반환값은 방금 종료한 번호
+// 종료된 자식의 상태값을 넣는다
+
+exit() : 하위8비트 종료상태
+signal : 상위8비트 시그널 번호 //abort에서 의해서 발생한 process 사이에서 발생하는 
+			       // process 는 서로 독립 되어 있기 때문에 signal 에 의해 종료 된 경우
+SIGSTP나 SIGSTOP 시그널 : 상위8비트는 0x7f, 하위8비트는 시그널 번호
+=> 복잡하므로 macro 함수가 존재
+
+//메크로 함수들
+WIFEXITED(status)		정상적으로 종료한 경우에 참 값을 리턴
+WEXITEDSTATUS(status)		exit 함수의 인자에서 하위 8 비트 값을 리턴
+WIFSIGNALED(status)		시그널에 의해 종료한 경우에 참 값을 리턴
+WTERMSIG(status)		시그널 번호를 리턴
+WCOREDUMP(status)		코어 파일이 생성된 경우에 참 값을 리턴 //
+WIFSTOPPED(status)		실행이 일시 중단된 경우에 참 값을 리턴
+WSTOPSIG(status)		실행을 일시 중단시킨 시그널 번호를 리턴
+
+-------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <sys/wait.h>
+
+void term_stat(int status)
+{
+    if(WIFEXITED(status))
+       printf("normal termination, exit status = %d\n",WEXITSTATUS(status));
+    else if(WIFSIGNALED(status))
+       printf("abnormal termination, signal number = %d%s\n",WTERMSIG(status),
+#ifdef  WCOREDUMP // #전처리기
+    WCOREDUMP(status) ? " (core file generated)" : ""); //삼항 연산자
+#else
+    "");
+#endif
+    else if(WIFSTOPPED(status))
+         printf("child stopped, signal number = %d\n",WSTOPSIG(status));
+}
+
+void err_end(char *msg){
+    printf("%s error\n",msg);
+    exit(1);
+} 
+int main(void)
+{
+        pid_t   pid;
+        int     status;
+
+        if ((pid = fork()) < 0)
+                err_end("fork");
+        else if (pid == 0)             /* child */
+                exit(7);
+
+	밑에 pid 값은 자식의 번호
+        if (wait(&status) != pid)      /* wait for child */ =>자식이 죽을때 까지 멈춤 wait은 죽은 자식의 번호
+		-> 해당 프로세스 멈춤  자식 프로세서 하나가 종료 하면 자식에 종료 상태 값을 자식의 종료한 번호를 반환 
+                err_end("wait");
+        term_stat(status);               /* and print its status */
+
+        if ( (pid = fork()) < 0)
+                err_end("fork");
+        else if (pid == 0)             /* child */
+                abort();               /* generates SIGABRT */
+
+        if (wait(&status) != pid)      /* wait for child */
+                err_end("wait");
+        term_stat(status);               /* and print its status */
+	if ( (pid = fork()) < 0)
+                err_end("fork");
+        else if (pid == 0)             /* child */
+                status /= 0;           /* divide by 0 generates SIGFPE */
+ 
+        if (wait(&status) != pid)       /* wait for child */
+                err_end("wait error");
+        term_stat(status);               /* and print its status */
+        exit(0);
+}
+
+
+
+
+
+
+
+
+

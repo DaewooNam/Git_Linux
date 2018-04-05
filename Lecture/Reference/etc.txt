@@ -1,0 +1,9 @@
+CPU 선택
+
+
+무슨 CPU 사용? arm&avr
+
+
+http://pcb4.tistory.com/1125
+
+-> arm 써라!
