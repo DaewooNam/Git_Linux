@@ -166,46 +166,48 @@ server(int readfd, int writefd)
 #include <sys/types.h>
 	#include <sys/ipc.h>
 	#include <sys/msg.h>
-
-	int msgget(key_t key, int msgflag);
+	//메시지 큐 오픈
+	int msgget(key_t key, int msgflag); //key 값-> 같은 숫자로 지정 // 정상적으로 open 안될시 음수 이때 int 값이 fd 번호와 비슷
 	-msgflag
 	   MSG_R
 	   MSG_W
 	   IPC_CREAT
-	   IPC_EXCL
+	   IPC_EXCL //있으면 error 없으면 새롭게 생성
 
 #include <sys/types.h>
 #include <sys/ipc.h>
 
 struct msqid_ds {
     struct ipc_perm msg_perm;
-    struct msg *msg_first;  /* first message on queue 큐의 처음 메세지*/
-    struct msg *msg_last;   /* last message in queue 큐의 마지막 메세지*/
+    struct msg *msg_first;  /* first message on queue 큐의 처음 메세지*/  //쓰는 위치
+    struct msg *msg_last;   /* last message in queue 큐의 마지막 메세지*/ //읽는 위치
     time_t msg_stime;       /* last msgsnd time 마지막으로 msgsnd가 수행된 시간*/
-    time_t msg_rtime;       /* last msgrcv time 마지막으로 msgrcv가 수행된 시간*/
+    time_t msg_rtime;       /* last msgrcv time 마지막으로 msgrcv가 수행된 시간*/ 
     time_t msg_ctime;       /* last change time 마지막으로 change가 수행된 시간*/
-    struct wait_queue *wwait;
-    struct wait_queue *rwait;
+    struct wait_queue *wwait; //대기 큐
+    struct wait_queue *rwait; //대기 큐
     ushort msg_cbytes;    
     ushort msg_qnum;     
     ushort msg_qbytes;      /* max number of bytes on queue 큐의 최대 바이트 수*/
-    ushort msg_lspid;       /* pid of last msgsnd 마지막으로 msgsnd를 수행한 pid*/
-    ushort msg_lrpid;       /* last receive pid 마지막으로 받은 pid*/
+    ushort msg_lspid;       /* pid of last msgsnd 마지막으로 msgsnd를 수행한 pid*/ //마지막 읽고 쓴 프로세스 번호
+    ushort msg_lrpid;       /* last receive pid 마지막으로 받은 pid*/              //
 };
+// 메세지 형태는 보통 구조체를 이용 이때, type 과 내용을 주로 사용
+// 이때 type 
 #include <sys/types.h>
 	#include <sys/ipc.h>
 	#include <sys/msg.h>
 
-	int msgsnd(int msgqid,const void *ptr,size_t nbyte,int flag);
+	int msgsnd(int msgqid,const void *ptr,size_t nbyte,int flag); //메세지 보내는 것 fd(file descriptor)
 	-flag
 	. IPC_NOWAIT : 
-        . 0 : block
+        . 0 : block -> default blocking
 
 #include <sys/types.h>
 	#include <sys/ipc.h>
 	#include <sys/msg.h>
 
-	int msgrcv(int msgqid,void *ptr,size_t nbyte,long type,int flag);
+	int msgrcv(int msgqid,void *ptr,size_t nbyte,long type,int flag); //메세지 받는것 (long type)
  flag  
    . IPC_NOWAIT : 
 
@@ -224,7 +226,7 @@ struct msqid_ds {
 	#include <sys/ipc.h>
 	#include <sys/msg.h>
 
-	int msgctl(int msgid,int cmd,struct msgid_ds *buf);
+	int msgctl(int msgid,int cmd,struct msgid_ds *buf); //message que를 control ex)삭제 가능 cmd=>rm
 -----------------------------------------------------------------------------------
 <msg1.c>
 #include <stdlib.h>
@@ -234,11 +236,11 @@ struct msqid_ds {
 #include <unistd.h>
 
 #include <sys/types.h>
-#include <sys/ipc.h>
+#include <sys/ipc.h> //message q 사용 하기 위해
 #include <sys/msg.h>
 struct my_msg_st {
-    long int my_msg_type;
-    char some_text[BUFSIZ];
+    int my_msg_type;
+    char some_text[BUFSIZ]; //bufsiz= 512 크기로 정의
 };
 
 int main()
@@ -246,7 +248,7 @@ int main()
     int running = 1;
     int msgid;
     struct my_msg_st some_data;
-    long int msg_to_receive = 0;
+    int msg_to_receive = 0;
     msgid = msgget((key_t)1234, 0666 | IPC_CREAT);
 
     if (msgid == -1) {
@@ -254,7 +256,10 @@ int main()
         exit(EXIT_FAILURE);
     }
     while(running) {
-        if (msgrcv(msgid, (void *)&some_data, BUFSIZ,
+	//오픈한 메시지큐에서 메시지를 타입 구분없이 맨 앞에서 
+	//BUFSIZ 크기만큼 하나 읽어와서 변수 some_data에 저장하고        
+	//만약 읽을 메시지가 없으면 블록
+	if (msgrcv(msgid, (void *)&some_data, BUFSIZ,
                    msg_to_receive, 0) == -1) {
             fprintf(stderr, "msgrcv failed with error: %d\n", errno);
             exit(EXIT_FAILURE);
@@ -264,7 +269,7 @@ int main()
             running = 0;
         }
     }
-  if (msgctl(msgid, IPC_RMID, 0) == -1) {
+  if (msgctl(msgid, IPC_RMID, 0) == -1) { //삭제 
         fprintf(stderr, "msgctl(IPC_RMID) failed\n");
         exit(EXIT_FAILURE);
     }
@@ -307,7 +312,11 @@ int main()
         fgets(buffer, BUFSIZ, stdin);
         some_data.my_msg_type = 1;
         strcpy(some_data.some_text, buffer);
-        if (msgsnd(msgid, (void *)&some_data, MAX_TEXT, 0) == -1) {
+	
+	// some_data에 저장된 메시지를 id가 msgid인 메시지큐에 
+	// MAX_TEXT 크기만큼 쓰는데 만약 메시지 큐에 빈 공간이 없다면 블록
+
+        if (msgsnd(msgid, (void *)&some_data, MAX_TEXT, 0) == -1) { (void*)캐스팅
             fprintf(stderr, "msgsnd failed\n");
             exit(EXIT_FAILURE);
         }
@@ -324,22 +333,26 @@ int main()
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-int shmget(key_t key, int size, int flag);
+//공유메모리 획득. param1 : 공유메모리 키번호, 
+		   param2 : 할당받을 메모리 키 번호
+		   param3 : 동작모드
+		   반환값 : 공유메모리 id
+int shmget(key_t key, int size, int flag); 
 -------
    struct shmid_ds {
           struct ipc_perm shm_perm;        /* 동작 허가사항 */
-          int     shm_segsz;                           /* 세그먼트의 크기(bytes) */
-          time_t  shm_atime;                       /* 마지막 attach 시간 */
-          time_t  shm_dtime;                       /* 마지막 detach 시간 */
-          time_t  shm_ctime;                       /* 마지막 change 시간 */
-          unsigned short  shm_cpid;           /* 생성자의 pid */
-          unsigned short  shm_lpid;            /* 마지막 동작자의 pid */
-          short   shm_nattch;                       /* 현재 attaches no. */
+          int     shm_segsz;               /* 세그먼트의 크기(bytes) */
+          time_t  shm_atime;               /* 마지막 attach 시간 */
+          time_t  shm_dtime;               /* 마지막 detach 시간 */
+          time_t  shm_ctime;               /* 마지막 change 시간 */
+          unsigned short  shm_cpid;        /* 생성자의 pid */
+          unsigned short  shm_lpid;        /* 마지막 동작자의 pid */
+          short   shm_nattch;              /* 현재 attaches no. */
 
                                            /* the following are private */
 
-          unsigned short   shm_npages;      /* 세그먼트의 크기 (pages) */
-          unsigned long   *shm_pages;        /* array of ptrs to frames -> SHMMAX */ 
+          unsigned short   shm_npages;     /* 세그먼트의 크기 (pages) */
+          unsigned long   *shm_pages;      /* array of ptrs to frames -> SHMMAX */ 
           struct vm_area_struct *attaches; /* descriptors for attaches */
   };
 ------
@@ -347,18 +360,27 @@ int shmget(key_t key, int size, int flag);
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+//획득한 공유메모리를 현재 프로세스 주소에 맵핑
+//param1 : 공유메모리 id, param2 : 직접 지정할 주소(NULL - > 시스템 할당)
+//param3 : 동작모드
+//리턴값 : 공유메모리를 현재 프로세스 주소에 맵핑한 주소값 
+
+
 char *shmat(int shmid, void *addr, int flag);
 ------
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+//공유메모리를 현재 프로세스 주소에 맵핑했던 주소에서 떼어냄
 int shmdt(void *addr);
 ------
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+//공유메모리 제어함수
+//parma1:공유메모리id , param2:명령어, param3:상태변수주소 
 int shmctl(int shmid, int cmde, struct shmid_ds *buf);
 
 ------------------------------------------------------------------------------------
@@ -375,7 +397,7 @@ int shmctl(int shmid, int cmde, struct shmid_ds *buf);
 #define TEXT_SZ 2048
 
 struct shared_use_st {
-	int written_by_you;
+	int written_by_you; //동기화 (몇번 프로세스에서 사용되어 있는지 확인)
 	char some_text[TEXT_SZ];
 }; 
 
@@ -386,38 +408,41 @@ int main()
     struct shared_use_st *shared_stuff;
     int shmid;
 
-    srand((unsigned int)getpid());    
+    srand((unsigned int)getpid());   //random 함수 사용하기 전에 시드값을 이용한 난수 생성 -> 규칙성을 최소화
 
-    shmid = shmget((key_t)1234, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    shmid = shmget((key_t)1234, sizeof(struct shared_use_st), 0666 | IPC_CREAT); //공유메모리 획득
     if (shmid == -1) {
         fprintf(stderr, "shmget failed\n");
         exit(EXIT_FAILURE);
     }
 
-    shared_memory = shmat(shmid, (void *)0, 0);
+    shared_memory = shmat(shmid, (void *)0, 0); //공유메모리를 접근시 다른놈시 쓸시 blocking / noway->읽거나 쓸때 error
     if (shared_memory == (void *)-1) {
         fprintf(stderr, "shmat failed\n");
         exit(EXIT_FAILURE);
     }
     printf("Memory attached at %X\n", (int)shared_memory);
 
-    shared_stuff = (struct shared_use_st *)shared_memory;
-    shared_stuff->written_by_you = 0;
+    shared_stuff = (struct shared_use_st *)shared_memory; ->casting void 시 직접 아무것도 못해
+    shared_stuff->written_by_you = 0; //0일때 동작 안함
     while(running) {
-        if (shared_stuff->written_by_you) {
+        if (shared_stuff->written_by_you) { //1일때 동작 (상대방이 조작)
             printf("You wrote: %s", shared_stuff->some_text);
-            sleep( rand() % 4 );
+            sleep( rand() % 4 ); //0~3초
             shared_stuff->written_by_you = 0;
             if (strncmp(shared_stuff->some_text, "end", 3) == 0) {
                 running = 0;
             }
         }
     }
+    
+    //현재 프로세스에서 공유메모리 주소를 떼어냄
     if (shmdt(shared_memory) == -1) {
         fprintf(stderr, "shmdt failed\n");
         exit(EXIT_FAILURE);
     }
-
+     
+    //공유메모리 삭제
     if (shmctl(shmid, IPC_RMID, 0) == -1) {
         fprintf(stderr, "shmctl(IPC_RMID) failed\n");
         exit(EXIT_FAILURE);
@@ -470,14 +495,21 @@ int main()
             printf("waiting for client...\n");
         }
         printf("Enter some text: ");
+	
+	//키보드 입력받은 것을 buffer에 저장
         fgets(buffer, BUFSIZ, stdin);
+	
+	//buffer의 내용을 공유메모리에 복사
         strncpy(shared_stuff->some_text, buffer, TEXT_SZ);
-        shared_stuff->written_by_you = 1;
+        
+	//다른 프로세스가 읽을 상태를 만든다.
+	shared_stuff->written_by_you = 1;
 
         if (strncmp(buffer, "end", 3) == 0) {
                 running = 0;
         }
     }
+	//자원 낭비로 인해 무조건 해줘야함 
     if (shmdt(shared_memory) == -1) {
         fprintf(stderr, "shmdt failed\n");
         exit(EXIT_FAILURE);
