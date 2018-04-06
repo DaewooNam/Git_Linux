@@ -1,0 +1,14 @@
+1. vmware메뉴 VM->settings선택 
+   options에서 shared-folder선택
+   공유폴더 지정(항상사용가능으로 설정)
+2. vmware메뉴 VM->install vmware tools선택
+3. 리눅스 바탕화면 cdrom에서 tools 압축파일을 
+다운로드 디렉토리(아무디렉토리상관없음)로 복사
+4. 복사한 디렉토리로 가서 압축해제
+   tar xfz 압축파일명
+5. 압축해제 디렉토리로 이동하여
+   ./vmware-install.pl
+   설치시 물어보는것 샘플로 나온 내용 그대로 입력하여 설치 진행
+6. 설치완료후
+   cd /mnt/hgfs
+   이동하면 공유폴더 보임

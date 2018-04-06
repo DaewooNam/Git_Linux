@@ -1,11 +1,12 @@
 쓰레드와 동기화
-aaaa
-1)쓰레드
+
+1)쓰레드 //반환값 저장
 
 @쓰레드 생성
 #include <pthread.h>
 int pthread_create (pthread_t *thread, const pthread_attr_t *attr, 
-			void *(*start_routine)(void *), void *arg);
+			void *(*start_routine)(void *), void *arg); //pthread_t(아이디 값), 쓰레드 속성값 , 함수포인터, 
+								      
 *thread		쓰레드 ID
 attr		쓰레드 속성
 start_routine 	쓰레드 함수 이름
@@ -14,9 +15,11 @@ arg		생성될 쓰레드에 전달될 인자들
 리턴값
 	정상 : 0
 
-@쓰레드 종료
+@쓰레드 종료 //무한루프 =>  detachable 종료, joinable 종료 두가지 방법이 있음 
+	                =>  exit, return 방법과 동일 (exit-> joinable, return=> detachable)
+			=>  detachabel (입출력을 닫고 종료) =>나머지 놈들은 입출력을 못함, joinable(다른 프로그램이 실행중이면 자원을 남겨두고 종료)
 #include <pthread.h>
-void pthread_exit (void *value_ptr);
+void pthread_exit (void *value_ptr); //joinable 함수
 --------------------------------------------------------------------------
 #include <stdio.h>
 #include <pthread.h>
@@ -29,7 +32,7 @@ void* Thread( void *arg )
     int i;
     for ( i=0; i<3; i++ ){
         printf( "thread %d: %dth iteration\n", *(int*)arg, i );
-//	sleep(1);
+//	sleep(1); => 섞이는 것을 보고 싶을때
     }
     pthread_exit(0);  /* 쓰레드 종료 함수 */
 }
@@ -39,31 +42,33 @@ void main( void )
     int i;
     pthread_t threads[3]; /* 쓰레드 아이디를 위한 변수 */
     
-    for ( i=0; i<3; i++ )  /* 쓰레드 생성 */
+    for ( i=0; i<3; i++ )  /* 쓰레드 생성 */ => main 도 thread 총 4개 
         // TODO: 스레드 생성하기
-        pthread_create( &threads[i],                /* 쓰레드ID */
+        pthread_create( &threads[i],                /* 쓰레드ID */ => 값에 대한 주소
                         NULL,                       /* 쓰레드 속성 */
-                        ( void* (*)(void*) )Thread, /* 쓰레드 시작 함수 */
-                        &thread_args[i] );          /* 생성된 쓰레드에 전달 인자 */
+                        ( void* (*)(void*) )Thread, /* 쓰레드 시작 함수 */ * 함수 포인터 를 말함(바로 분기 하지 않음)
+                        &thread_args[i] );          /* 생성된 쓰레드에 전달 인자 */ (위 함수의 파일 파라미터)
     
     pthread_exit(0); /*메인 쓰레드 종료 */
 }
+
+gcc -o test test.c -lpthread
 ------------------------------------------------------------------------------
 2)동기화
 
-@세마포어
-종류 - 	이진
-	계수
+@세마포어 => 공유 자원을 쓸 수 있는 티켓 
+종류 - 	이진 //화장실 한칸    (1,0) 1이면 사용 가능 ,0 이면 사용 불가
+	 //화장실 여러칸  ex)(3,2,1,0) 화장실 문 3칸 
 
 연산 -	initialize (create)
-	wait (pend)
-	signal (post)
+	wait (pend)   // 세마포어 획득
+	signal (post) // 세마포어 반환
 API
-sem_wait( sem_t * );  
-sem_trywait( sem_t * ); 
-sem_post( sem_t * );
-sem_getvalue( sem_t *, int * );
-sem_destroy( sem_t * );
+sem_wait( sem_t * );            // 1.세마포어 변수 변수 설정 2. 그 변수 초기화 3. 세마 포어 변수의 주소값 -> block 들어감
+sem_trywait( sem_t * );         // 대기하지 말고 바로 eroor 발생
+sem_post( sem_t * );            // 반환(공유 작업을 마친 후) => 다른 쓰레드가 대신 반환 가능함(획든한 애가 아니더라도 반환 가능)
+sem_getvalue( sem_t *, int * ); // 현재 value 값을 확인해 줄 수 있음
+sem_destroy( sem_t * );		// 사용한 세마포어 삭제
 --------------------------------------------------------------------
 #include <stdio.h>
 #include <semaphore.h>
@@ -72,7 +77,7 @@ sem_destroy( sem_t * );
 sem_t        sem;  /*TODO: semaphore variable - sem */
 pthread_t   task[3];
 int params[3]={1,2,3};
-int arg;
+int arg; //공유자원
 //----------------------------------------
 void Thread(void *param) {
     int i = 0;
@@ -89,7 +94,8 @@ void Thread(void *param) {
 void main( void )
 {
     int i = 0, val;
-    sem_init( &sem, 0, 1); /* TODO: initialize unnamed semaphore */
+    // param1 : 세마포어 주소, param2 : 동작모드(private,public), param3 : value 초기값 
+    sem_init( &sem, 0, 1); /* TODO: initialize unnamed semaphore */ 
     for(i=0;i<3;i++)
     	pthread_create( &task[i], NULL, (void*(*)(void*))Thread, &params[i] );
 
@@ -103,7 +109,10 @@ void main( void )
     
 }  
 -----------------------------------------------------------------------------------
-@뮤텍스
+@뮤텍스(upgrade) -> 세마포는 소유권이 존재 하지 않음 . 소유권이 있음(대출 풀수 있는건 현재 있는 것만 할 수 있음) 
+                 -> 잠금놈을 잠금적으로 사용 가능 
+                 ->
+
 소유권, 재귀적 접근(recursive access), 태스크 삭제 보호, 우선 순위 역전 회피 프로토콜
 
 역전회피
@@ -113,12 +122,13 @@ protocol-	PTHREAD_PRIO_NONE
 		PTHREAD_PRIO_PROTECT   - 우선순위 상한
 pthread_mutex_setprioceiling( pthread_mutex_t *, prioceiling, &old_ceiling ) 
 
-API
-PTHREAD_MUTEX_INITIALIZER
-pthread_mutex_lock( pthread_mutex_t * )
-pthread_mutex_trylock( pthread_mutex_t * )
-pthread_mutex_unlock( pthread_mutex_t * )
-pthread_self()
+// 특수한 2진 세마포라고 함
+API // 2진 (공유 자원을 많이 사용 하지 않음)
+PTHREAD_MUTEX_INITIALIZER // 초기화 상수값
+pthread_mutex_lock( pthread_mutex_t * )     //blocking
+pthread_mutex_trylock( pthread_mutex_t * )  //blocking no ->
+pthread_mutex_unlock( pthread_mutex_t * )   //blocking 해제
+pthread_self() //현재 쓰레드 값을 반환하는 함수
 -----------------------------------------------------------------------------------
 #include <semaphore.h>
 #include <pthread.h>
@@ -127,7 +137,7 @@ pthread_self()
 /* TODO: 뮤텍스 변수 선언 mutex, 선언과 동시에 초기화 */
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-int val;
+int val; //공유자원
 int arg1 = 0, arg2 = 1;
 //-------------------------------------------
 void *Thread( void* arg ) 
@@ -136,11 +146,11 @@ void *Thread( void* arg )
     
     for( i = 0; ; i++ ) {
         /* TODO: mutex 잠그기 */
-        pthread_mutex_lock( &mutex );
+        pthread_mutex_lock( &mutex ); //잠금 -> 다른 쓰레드가 접근을 할 수 없음
         val = *(int*)arg;
         printf( "thread %d: %dth iteration: val = %d\n", *(int*)arg, i, val);
         /* TODO: mutex 풀기 */
-        pthread_mutex_unlock( &mutex );
+        pthread_mutex_unlock( &mutex ); //
         //for ( j=0; j<1000000; j++ );
         sleep(1);
     }
@@ -148,20 +158,31 @@ void *Thread( void* arg )
 //-------------------------------------------
 int main( void ) {
     pthread_t  thread1, thread2;
-    pthread_attr_t attr;
+    pthread_attr_t attr; //쓰레드 속성 변수
     
-    struct sched_param param;
+    struct sched_param param; //우선순위, 퀀텀
     int policy;
+
+    //특정 쓰레드의 속성값을 읽어서 변수에 저장    
+    pthread_getschedparam( pthread_self(), &policy, &param ); //main thread 
     
-    pthread_getschedparam( pthread_self(), &policy, &param );
+    //속성이 여러가지 값들이 존재 할 수 있음 
+    //설정 값을 변경시에 원래 설정된 거기에 일부만 고쳐서 세팅 하게 된다. 
+   
+    //printf("스케줄링 :%d , 우선순위: %d, policy, param.sched_priority");
     param.sched_priority = 1;
-    policy = SCHED_RR;
+    policy = SCHED_RR; //SCHED_FIFO, SCHED_OTHER (roundary robin)
+
+    //특정 쓰레드의 속성값을 변경   
     pthread_setschedparam( pthread_self(), policy, &param );
-    pthread_attr_init( &attr );
-    pthread_attr_setschedpolicy( &attr, SCHED_RR );
     
-    pthread_create( &thread1, &attr, (void*(*)(void*))Thread, &arg1 );
-    pthread_create( &thread2, &attr, (void*(*)(void*))Thread, &arg2 );
+    pthread_attr_init( &attr ); //쓰레드의 기본 속성을 초기화 해줌
+
+    //쓰레드의 스케줄링 정책 변경 함수
+    pthread_attr_setschedpolicy( &attr, SCHED_RR ); 
+    
+    pthread_create( &thread1, &attr, (void*(*)(void*))Thread, &arg1 ); //속성만 변화 시켜줌 
+    pthread_create( &thread2, &attr, (void*(*)(void*))Thread, &arg2 ); //우선순위가 동등함
     
     pthread_exit(0);
     return 0;
