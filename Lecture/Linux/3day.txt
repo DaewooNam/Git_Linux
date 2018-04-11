@@ -49,7 +49,7 @@ ps
 -------------------------------------------------------------------------------
 #include <sys/types.h> //보통 양수로 사용 pid 값을 option 을 통해 결정할 수 있음 
 #include <sys/wait.h>
-pid_t waitpid(pid_t pid,int *statloc,int options); //종료한 자식의 번호
+pid_t waitpid(pid_t pid,int *statloc,int options); //종료한 자식의 번호 (특정 자식의 번호를 종료할때까지 기다림)
 pid
     . == -1  : wait 함수와 동일한 기능
     .   >   0 : 프로세스 ID가 pid인 프로세스의 종료 상태값을 리턴
@@ -60,8 +60,8 @@ options -
     . WUNTRACED : pid인 프로세스가 잠시 중단된 경우에 리턴
                             WIFSTOPPED 매크로를 통해 확인
 ----------------------------------------------------------------------------------
-int execl (char *path,char *arg0,char *arg1,...,char *argn,(char *)0);
-int execv (char *path,char *argv[]); //배열로 담아서 넣어 주느냐
+int execl (char *path,char *arg0,char *arg1,...,char *argn,(char *)0); //(char*) -
+int execv (char *path,char *argv[]); //배열로 담아서 넣어 주느냐(명령인자)
 int execle (char *path,char *arg0,char *arg1,...,char *argn,(char *)0,char *envp[]);
 int execve (char *path,char *argv[],char *envp[]);
 int execlp (char *file,char *arg0,char *arg1,...,char *argn,(char *)0);
@@ -69,7 +69,7 @@ int execvp (char *file,char *argv[]);
     . l : 리스트 형태의 명령라인 인자(argv[0],argv[1],argv[2]…)
     . v :벡터(vector) 형태의 명령 라인 인자(argv[])
     . e :환경변수 인자(envp[])
-    . p : path정보가 없는 실행화일 이름
+    . p : path정보가 없는 실행화일 이름 => path ./profile 
 -----------------------------------------------------------------------------------
 <./newpgm>
 #include<stdio.h>
@@ -152,7 +152,7 @@ void main(int argc, char *argv[]){
 -----------------------------------------------------------
 #include <stdlib.h>
 
-int system(const char *cmdstring);
+int system(const char *cmdstring); //쉘 명령어를 사용 할 수 있음
 --------------------------------------------------------------
 #include <stdio.h>
 #include <unistd.h>
@@ -166,7 +166,7 @@ int main()
 } 	
 
 ---------------------------------------------------------------------------------------
-signal 종류 //맞지 않은것도 있음
+signal 종류 //맞지 않은것도 있음 -> 프로세스 사이에 주고 받는 신호
 #define SIGHUP  1               /* hangup */
 #define SIGINT  2               /* interrupt (rubout) */
 #define SIGQUIT 3               /* quit (ASCII FS) */

@@ -19,7 +19,7 @@ arg		생성될 쓰레드에 전달될 인자들
 	                =>  exit, return 방법과 동일 (exit-> joinable, return=> detachable)
 			=>  detachabel (입출력을 닫고 종료) =>나머지 놈들은 입출력을 못함, joinable(다른 프로그램이 실행중이면 자원을 남겨두고 종료)
 #include <pthread.h>
-void pthread_exit (void *value_ptr); //joinable 함수
+void pthread_exit (void *value_ptr); //joinable 함수 -> 남은 쓰레기들도 정장석인 종료가 가능함
 --------------------------------------------------------------------------
 #include <stdio.h>
 #include <pthread.h>
@@ -250,7 +250,7 @@ int main( void )
 @조건변수
 API
 PTHREAD_COND_INITIALIZER
-pthread_cond_wait( pthread_cond_t *, pthread_mutex_t * )
+pthread_cond_wait( pthread_cond_t *, pthread_mutex_t * ) //조건에 의해서 동작 되고 안되고
 pthread_cond_timedwait( pthread_cond_t *, pthread_mutex_t *, const struct timespec * )
 pthread_cond_signal(  pthread_cond_t * )
 pthread_cond_broadcast( pthread_cond_t * )

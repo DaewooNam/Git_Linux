@@ -1,0 +1,458 @@
+<server>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <sys/types.h> 
+#include <signal.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h> 
+#include <arpa/inet.h> 
+#define MAXLINE 1024 
+
+char *escapechar = "exit\n";	/* 종료문자 */ 
+
+int main(int argc, char *argv[])
+{ 
+    int server_fd, client_fd;	/* 소켓번호 */ 
+    int clilen, num; 
+    char sendline[MAXLINE], rbuf[MAXLINE]; 
+    int size; 
+    pid_t pid; 
+    struct sockaddr_in client_addr, server_addr; 
+    int len;
+    struct sockaddr_in fd_ser,fd_cli;  
+   
+    if (argc < 2) 
+    { 
+	printf("Usage: %s TCP_PORT\n", argv[0]); 
+	return -1; 
+    } 
+
+    /* 소켓 생성 */ 
+    if((server_fd=socket(PF_INET, SOCK_STREAM, 0)) < 0) 
+    { 
+	printf("Server: Can't open stream socket\n"); 
+	return -1; 
+    } 
+    printf("SOCKET = %d\n",server_fd);
+	
+    /* 서버의 소켓주소 구조체 server_addr을 '0'으로 초기화 */ 
+    bzero((char *)&server_addr, sizeof(server_addr)); 
+    bzero((char *)&fd_ser, sizeof(server_addr)); 
+    bzero((char *)&fd_cli, sizeof(server_addr));
+
+    /* server_addr을 세팅 */ 
+    server_addr.sin_family = AF_INET; 
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    server_addr.sin_port = htons(atoi(argv[1])); 
+
+    if(bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) 
+    { 
+	printf("Server: Can't bind local address \n"); 
+	return -1; 
+    } 
+    printf("Server started.\nWaiting for client.."); 
+	
+    listen(server_fd, 1); 
+
+    clilen = sizeof(client_addr); 
+    if((client_fd = accept(server_fd,(struct sockaddr *)&client_addr, &clilen)) != -1) 
+    { 
+	printf("Server: client connected\n"); 
+	printf("Accept Socket = %d\n",client_fd);
+	printf("Accept IP : %s,Port : %u\n",
+  	inet_ntoa(client_addr.sin_addr),(unsigned)ntohs(client_addr.sin_port));
+		
+        len = sizeof(fd_ser); 
+        if(getpeername(server_fd,(struct sockaddr *)&fd_ser,&len)==0)
+        {
+             printf("fd_ser IP : %s,Port : %u\n",
+             inet_ntoa(fd_ser.sin_addr),(unsigned)ntohs(fd_ser.sin_port));
+        }
+
+        len = sizeof(fd_cli); 
+        if(getpeername(client_fd,(struct sockaddr *)&fd_cli,&len)==0)
+        {
+             printf("fd_cli IP : %s,Port : %u\n",inet_ntoa(fd_cli.sin_addr),
+                               			(unsigned)ntohs(fd_cli.sin_port));
+        }
+    }
+    else 
+    { 
+	printf("Server: failed in accepting.\n"); 
+        return -1; 
+    } 
+	
+    /* 부모 프로세스는 키보드 입력을 클라이언트에게 전송 */ 
+    if((pid = fork()) > 0) 
+    { 
+	while((size = read(0, sendline, MAXLINE)) > 0) 
+	{ 
+	     sendline[size] = '\0'; 
+			       if(write(client_fd, sendline, size) != size) 
+			       { 
+				         printf("Server: fail in writing\n"); 
+			       } 
+		
+			       /* 종료 문자열 입력 확인 */ 
+			       if(strncmp(sendline, escapechar, 4) == 0) 
+			       { 
+				         kill(pid, SIGQUIT); 
+				         break; 
+			       } 
+		     } 
+	    }	
+        /* 자식프로세스는 소켓으로부터 들어오는 메시지를 화면에 출력 */ 
+       else if (pid == 0) 
+       { 
+	      while(1) 
+	      { 
+		        if((size = read(client_fd, rbuf, MAXLINE)) > 0) 
+		        { 
+			          rbuf[size] = '\0'; 
+			
+			          /* 종료문자열 수신 처리 */ 
+			          if (strncmp(rbuf, escapechar, 4) == 0)
+                                                                        { 
+    			                kill(getppid(), SIGQUIT); 
+                                                                              break; 
+                                                                        }
+			          printf("%s", rbuf); 
+		         } 
+	       } 
+        } 
+        close(server_fd); 
+        close(client_fd); 
+}
+---------------
+<client>
+#include <stdio.h> 
+#include <string.h> 
+#include <stdlib.h> 
+#include <sys/types.h> 
+#include <signal.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h> 
+#include <arpa/inet.h> 
+#define MAXLINE 1024 
+
+char *escapechar = "exit\n";
+
+int main(int argc, char *argv[])
+{ 
+    char line[MAXLINE], sendline[MAXLINE], recvline[MAXLINE+1]; 
+	  char *haddr; 
+	  int n, size, comp, port; 
+	  pid_t pid; 
+	  static int s; 
+	  static struct sockaddr_in server_addr; 
+	  int len;
+	  static struct sockaddr_in fd_ser;     
+  /* 명령문 입력 인자 처리 */ 
+  if (argc < 3)
+  { 
+	    printf("Usage: %s SERVER_ADDRESS TCP_PORT\n", argv[0]); 
+	    return -1;
+  }
+  else 
+  { 
+	    haddr = argv[1];	/* 토크 서버 주소 */ 
+	    port = atoi(argv[2]);	/* 토크 서버의 포트번호 */ 
+  } 
+
+  /* 소켓 생성 */ 
+  if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) 
+  { 
+	    printf("Client: Can't open stream socket.\n"); 
+	    return -1; 
+  }
+	  /* server_addr을 '0'으로 초기화 */ 
+	  bzero((char *)&server_addr, sizeof(server_addr)); 
+
+	  /* server_addr 세팅 */ 
+	  server_addr.sin_family = AF_INET; 
+	  server_addr.sin_addr.s_addr = inet_addr(haddr); 
+	  server_addr.sin_port = htons(port); 
+
+	  /* 서버에 연결 요청 */ 
+	  if(connect(s,(struct sockaddr *)&server_addr,sizeof(server_addr)) < 0) 
+	  { 
+		    printf("Client: can't connect to server.\n"); 
+		    return -1; 
+	  } 
+          len = sizeof(fd_ser);
+	  if(getpeername(s,(struct sockaddr *)&fd_ser,&len)==0)
+          {
+                printf("fd_ser IP : %s,Port : %u\n",inet_ntoa(fd_ser.sin_addr),
+                                                                                                (unsigned)ntohs(fd_ser.sin_port));
+	  }
+          if(( pid = fork()) > 0)
+         { 
+	    /* 부모 프로세스는 키보드 입력을 서버로 전송 */ 
+	    while((size=read(0, sendline,MAXLINE)) > 0) 
+	    { 
+		      sendline[size] = '\0'; 
+		      if(write(s, sendline, strlen(sendline)) != size) 
+		      { 
+			        printf("Client: can't write to server.\n"); 
+			        return -1; 
+		      } 
+		      /* 종료문자열 입력 처리 */ 
+		      if(strncmp(sendline, escapechar, 4) == 0) 
+		      { 
+			        kill(pid, SIGQUIT); 
+			        break; 
+		      } 
+	    } 
+          } 
+           else if (pid == 0) 
+           { 
+	    /* 자식 프로세스는 소켓으로부터 들어오는 메시지를 화면에 출력 */ 
+	    while(1) 
+	    { 
+		      if((size = read(s, recvline, MAXLINE)) > 0) 
+		      { 
+			        recvline[size] = '\0'; 
+			        /* 종료문자열 수신시 종료 */ 
+			        if(strncmp(recvline, escapechar,4) == 0) 
+                                                                      { 
+    			                kill(getppid(), SIGQUIT); 
+                                                                              break; 
+                                                                        }
+			        printf("%s", recvline); 
+		      } 
+	    } 
+             } 
+            close(s); 
+}
+-------------------------------------------------------------------------------
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <sys/types.h> 
+#include <signal.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h> 
+#include <arpa/inet.h> 
+#include <pthread.h>
+#include <string.h>
+#define MAXLINE 1024 
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+char *escapechar = "exit\n";	 
+int fds[30];
+int cnt=0;
+void* Thread(void *arg){
+	int fd=*(int *)arg, i;
+	int size;
+	char rbuf[MAXLINE]; 
+	printf("thread start\n"); 
+	while(1) 
+	{ 
+		printf("while start:%d\n", fd); 
+		if((size = read(fd, rbuf, MAXLINE)) > 0) 
+	        { 
+			rbuf[size] = '\0'; 
+			printf("msg:%s\n", rbuf); 
+			if (strncmp(rbuf, escapechar, 4) == 0)
+                        { 
+    			close(fd); 
+    			strcpy(rbuf, "exit\n");
+    			write(fd, rbuf, size);
+         	break; 
+                         }
+         pthread_mutex_lock( &mutex );
+			for(i=0;i<cnt;i++){
+			   if(write(fds[i], rbuf, size) != size) 
+			       	{ 
+				   printf("Server: fail in writing\n"); 
+			       	} 
+			}	         
+			pthread_mutex_unlock( &mutex );
+	       }
+	       } 
+	pthread_exit(0);
+}
+int main(int argc, char *argv[]){
+	int server_fd, client_fd;	 
+   int clilen, num; 
+   struct sockaddr_in client_addr, server_addr; 
+   int len;
+   struct sockaddr_in fd_ser,fd_cli;  
+   	pthread_t threads[30];
+   
+   if (argc < 2){
+		printf("Usage: %s TCP_PORT\n", argv[0]); 
+		return -1; 
+    	} 
+
+    	
+   if((server_fd=socket(PF_INET, SOCK_STREAM, 0)) < 0) 
+	{ 
+		printf("Server: Can't open stream socket\n"); 
+		return -1; 
+    	} 
+   printf("SOCKET = %d\n",server_fd);
+	 
+   bzero((char *)&server_addr, sizeof(server_addr)); 
+   bzero((char *)&fd_ser, sizeof(server_addr)); 
+   bzero((char *)&fd_cli, sizeof(server_addr));
+
+   
+    server_addr.sin_family = AF_INET; 
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    server_addr.sin_port = htons(atoi(argv[1])); 
+
+   if(bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) 
+    	{	 
+		printf("Server: Can't bind local address \n"); 
+		return -1; 
+    	} 
+   printf("Server started.\nWaiting for client.."); 
+	
+   listen(server_fd, 1); 
+
+   clilen = sizeof(client_addr); 
+   while(1){
+		if((client_fd = 
+		accept(server_fd,(struct sockaddr *)&client_addr, &clilen)) != -1) 
+    		{ 
+			printf("Server: client connected\n"); 
+			printf("Accept Socket = %d\n",client_fd);
+			printf("Accept IP : %s,Port : %u\n", 
+					inet_ntoa(client_addr.sin_addr),(unsigned)ntohs(client_addr.sin_port));
+			
+			pthread_mutex_lock( &mutex );
+			fds[cnt]=client_fd;	
+			printf("fds[%d]=%d\n", cnt, fds[cnt]); 		
+			pthread_create(&threads[cnt], NULL, Thread, &fds[cnt]);
+			cnt++;
+			pthread_mutex_unlock( &mutex );
+
+		 }else{ 
+			printf("Server: failed in accepting.\n"); 
+        	return -1; 
+    		   } 
+	}
+   
+	close(server_fd);  
+}
+
+
+---------------------------------------------------------------------------------------
+UDP 통신
+
+장점 
+    - 간단함
+    - 유연함
+    - 능률적
+    - 신속함
+    - 브로드 캐스트, 멀티 캐스트
+
+단점
+    - 신뢰성이 떨어짐
+    - 다수의 datagram의 연속성이 없음
+    - 메시지 크기의 제한             
+---------------------------------------------------------------------------------
+<server>
+#include <stdio.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+
+#define MYPORT 50000    
+#define MAXBUFLEN 100
+
+main()
+{
+    int sockfd;
+    struct sockaddr_in my_addr;    /* my address information */
+    struct sockaddr_in their_addr; /* connector's address information */
+    int addr_len, numbytes;
+    char buf[MAXBUFLEN];
+
+    if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+    my_addr.sin_family = AF_INET;         /* host byte order */
+    my_addr.sin_port = htons(MYPORT);     /* short, network byte order */
+    my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
+    bzero(&(my_addr.sin_zero), 8);        /* zero the rest of the struct */
+
+    if(bind(sockfd,(struct sockaddr *)&my_addr,sizeof(struct sockaddr))== -1){
+        perror("bind");
+        exit(1);
+    }
+
+    addr_len = sizeof(struct sockaddr);
+    memset(buf,'\0',MAXBUFLEN);
+    
+    // block
+    if((numbytes=recvfrom(sockfd, buf, MAXBUFLEN, 0,
+                   (struct sockaddr *)&their_addr,&addr_len)) == -1){
+        perror("recvfrom");
+        exit(1);
+    }
+   printf("get packet from %s\n",inet_ntoa(their_addr.sin_addr));
+    printf("packet is %d bytes long\n",numbytes);
+    printf("packet contains : %s\n",buf);
+
+    close(sockfd);
+}
+--------
+<client>
+#include <stdio.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <netdb.h> 
+#include <sys/socket.h> 
+
+#define MYPORT 50000    /* the port users will be connecting to */
+#define MAXLEN 100
+
+int main(int argc, char *argv[])
+{
+    int sockfd;
+    struct sockaddr_in their_addr; /* connector's address information */
+    struct hostent *he;
+    int numbytes;
+    char buf[MAXLEN];
+
+    if (argc != 2) {
+        fprintf(stderr,"usage: %s IP\n",argv[0]);
+        exit(1);
+    }
+ if ((he=gethostbyname(argv[1])) == NULL) {  /* get the host info */
+        herror("gethostbyname");
+        exit(1);
+    }
+
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+    their_addr.sin_family = AF_INET;      /* host byte order */
+    their_addr.sin_port = htons(MYPORT);  /* short, network byte order */
+    their_addr.sin_addr = *((struct in_addr *)he->h_addr);
+    bzero(&(their_addr.sin_zero), 8);     /* zero the rest of the struct */
+    memset(buf,'\0',MAXLEN);
+    
+    printf("Input Message : ");
+    fflush(stdin);
+    fgets(buf,MAXLEN,stdin);
+
+   if((numbytes=sendto(sockfd,buf,strlen(buf),0,
+         (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
+        perror("sendto");
+        exit(1);
+    }
+ 
+   printf("sent %d bytes to %s\n",numbytes,inet_ntoa(their_addr.sin_addr));
+    close(sockfd);
+
+    return 0;
+}

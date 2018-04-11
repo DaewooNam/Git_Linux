@@ -1,11 +1,11 @@
-IPC(프로세스 간 통신)
+IPC(프로세스 간 통신)(inter process commuication)
 	-파이프
 	-메시지큐
 	-공유메모리
 --------------------------------------------------------
 1)파이프
 #include <unistd.h>
-	void pipe(int filedes[2]);
+	void pipe(int filedes[2]); //fid 번ㄴ호
 	- data를 FIFO방식으로 처리
         - filedes[0] : 읽기 위하여 사용됨
         - filedes[1] : 쓰기 위하여 사용됨 =>default 값

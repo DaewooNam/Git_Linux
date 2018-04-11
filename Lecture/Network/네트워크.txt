@@ -1,0 +1,861 @@
+1. OSI 7계층				TCP/IP Protocol
+
+Application ---------------------------	Application(ftp, telnet, dns...)
+Presentation
+Session                                  -> session을 통해 app에 data를 전달
+--------------------------------------------소켓-------------------------------------- (api 를 제공함) 
+--------------------------------------네트워크와 app를 연결해줌-----------------------
+Transpot ------------------------------ Transport(TCP, UDP) => 신뢰성/ 비신뢰성 data를 주고 받는 층
+Network ------------------------------- Internet(IP, ARP, RARP) // 길을 찾아가는 역학
+Data Link ----------------------------- Network Interface(로컬 통신) // 송신 수신 작업
+Physical ->랜선등을 말함
+
+ip - > data을 쪼갬
+
+2. TCP (연결이 끊길때 까지 연결이 유지하면서 data를 전송해주는 방법)
+-연결 지향성 프로토콜 (속도가 오래 걸림)
+
+프로세스간 통신
+연결성립과 연결 종료
+신뢰성 있는 Packet전송 -> 상대방이 받았는지 or 순서 or 오류등을 체킹함 
+연속되는 Packet 전송
+Data Overflow 방지를 위한 Flow Control
+Error Control
+
+3. TCP Error Control
+    - TCP는 오류제어를 통하여 신뢰성을 제공한다.
+    - 오류 감지 및 정정을 위한 매커니즘 제공
+
+오류 상황
+   . 손상 세그먼트
+   . 손실 세그먼트
+   . 순서가 어긋난 세그먼트
+   . 중복 세그먼트
+
+오류 발견과 정정
+   . Checksum
+   . 확인응답
+   . 시간초과
+
+4. UDP(User Datagram Protocol) -> 방송등에 사용
+
+    - 비 연결 지향성 프로토콜 (연결을 유지 하지 않음 ,받았는지 오류가 생겼는지 확인을 하지 않음)
+    - Port no에 의한 프로세스 구분 -> 프로세스를 구분해줌
+    - 상위 애플리케이션에서 reliability， message loss， duplication， delay ， 
+         loss of connectivity를 체크하고 관리 
+    - TCP의 오버헤드를 피하고자 하는 경우
+    - broadcast 및 multicast 사용시
+
+5. Internet Layer Protocol
+    - 라우팅
+    - 상위 레이어에 단 하나의 네트워크 인터페이스 제공
+
+IP(Internet Protocol)
+ICMP(Internet Control Message Protocol)
+ARP(Address Resolution Protocol) mac addr 을 ip로 변환 
+RARP(Reverse Address Resolution Protocol)   ip를 mac addr로 변환
+
+*IP
+-OSI 네트워크 계층에서 호스트의 주소지정과 패킷 분할 및 조립 기능을 담당한다.
+-IP는 비신뢰성(unreliability)과 비연결성(connectionlessness)이 특징. => 신뢰성을 저게ㅗ아너가 연결서잉 ㅣㅍㄹ요업다
+
+
+단편화(Fragmentation)
+   - 데이타그램의 크기 조절기능(확장성)
+   - 수신측에서는 재조립(reassemble)
+   - 헤더에 같은 값의 Identification 
+   - MTU(Maximum Transfer Unit)의 길이에 따라 나누어 보냄 -> 최대로 나눠서 보낼 수 있는 크기 
+
+*ARP(Address Resolution Protocol) 
+    - IP Address를 MAC Address로 변환해주는 Protocol
+    - ARP는 Local Broadcasting에 의존한다.
+    - 한번 찾은 Address는 ARP Cache에 일정기간  보관
+
+*RARP(Reverse Address Resolution Protocol)
+    - MAC Address로부터 IP Address로의 변환(인터넷으로 나갈때 사용)
+    - 네트워크는 RARP 서버를 포함해야 한다.
+
+*ICMP(Internet Control Message Protocol)
+    - 인터넷상의 라우터 및 호스트가 전송상의 에러를 보고하고, 
+      노드간 통신에 있어 제어를 위한 메시지를 보고하게 할 목적으로
+      만들어진 프로토콜 
+    
+6. 네트워크 주소
+Address Class			NetID(동네) : HostID(컴퓨터)
+CLASS A : 1 ~ 126,         	1:3 (대형) -> 많은 집을 만들 수 있음
+CLASS B : 128 ~ 191		2:2 (중형)
+CLASS C : 192 ~ 223		3:1 ()동네 (한동네) / 많이 호스트는 그보다 적음
+CLASS D : 224 ~ 239		Multicast Address
+CLASS E : 240 ~ 255		reserved
+
+Subnet Mask의 이용 -> 동내 번호만 짜르고 싶을때
+    - 같은 subnet인지
+    - 같은 네트웍의 다른 subnet인지
+    - 다른 네트웍인지를 알 수 있다
+ex> 	255.0.0.0	(A)
+	255.255.0.0	(B)
+	255.255.255.0	(C)
+목적
+    - 할당 받은 IP Address를 효과적으로 사용
+    - 네트웍 Traffic 관리 및 제어 
+    - 네트웍 성능의 최적화
+    - 관리의 간편성
+
+방법
+    - hostID의 일부를 netID로 사용
+
+ex>
+IP Address(131.108.2.160)의 Subnet Mask :
+
+255.255.0.0
+255.255.255.0
+
+Network Address = 192.168.10.0 , SubnetMask = 255.255.255.192
+
+
+6. IP Routing
+    - 한 네트웍에서 다른 네트웍으로 Packet을 이동시키는 과정과
+      네트웍 안의 호스트에게 Packet을 배달하는 과정
+
+Direct Delivery -> 목적 동내에 도달 한것을 확인 
+    - 패킷의 발신지와 목적지가 동일 네트워크에 존재
+    - 최종 라우터와 목적지 호스트 사이에 수행
+    - 목적지 주소에서 netid를 추출하여 네트워크 주소와 비교
+    - 주소가 같으면 직접 전달이 수행 
+
+Indirect Delivery
+    - 발신지와 목적지가 다른 네트웍인 경우
+    - 여러 라우터를 경유하여 전달
+    - 라우팅 테이블에서 다음 라우터의 IP주소를 찾는다. 
+
+Routing Table
+    - 패킷 전송의 경로를 판단하기 위한 기준치들의 모음
+
+Routing Metric
+    - route(경로)들을 서로 비교하는데 사용되는 비용 측정치
+
+
+8. 소켓
+     - 1982년 BSD(Berkeley Software Distribution) UNIX 4.1에서 처음 소개
+
+     - 1986년 BSD UNIX 4.3에서 개정된 것이 널리 쓰임
+
+     - 소프트웨어로 작성된 통신의 접속점
+
+     - 응용프로그램이 TCP/IP를 이용 할 수 있는 창구 역할
+
+     - 응용 프로그램은 소켓을 이용하여 통신망에 데이터를 송.수신
+
+구성 
+     - 소켓 생성시 file descriptor와 같은 기능을 하는 socket descriptor 리턴
+     - 파일과 소켓이 descriptor table을 공유
+     - 한 프로세스에서 descriptor는 중복되지 않는다.
+
+
+
+9. 소켓 프로그래밍
+
+1) 주소변환
+[ Domain Name ]		[ 32bit binary ]	[ Dotted Decimal ]
+-------------------------------------------------------------------------
+십진 주소를 바이너리 주소로 변환
+#include <arpa/inet.h>
+
+int inet_aton(const char *strptr, struct in_addr *addrptr);
+
+                Rerurns : 1 if string was valid, 0 on error
+
+ -strptr이 가리키는 문자열을 32비트 네트워크 바이트 순서의 이진값으로 바꾼다
+-----------------------------------------------------------------------------------
+십진 주소를 바이너리 주소로 변환
+#include <arpa/inet.h>
+
+in_addr_t  inet_addr(const char *strptr);
+
+                  Rerurns : 32-bit binary network byte, INADDR_NONE if error
+
+ -32비트 네트워크 바이트 순서의 이진값을 리턴한다.
+ -오류 발생시 32비트가 모두 1인 상수 INADDR_NONE을 돌려준다.
+
+struct sockaddr_in{
+        short                  sin_family;
+        unsigned short    sin_port;
+        struct  in_addr     sin_addr;
+        char                   sin_zero[8]; //사용 안됨
+};
+
+sin_family
+주소 패밀리 (반드시 AF_INET)
+
+sin_port
+네트웍 바이트 오더로 이루어진 포트 번호
+
+sin_addr
+네트웍 바이트 오더로 이루어진 아이피 번호
+
+sin_zero
+사용되지 않는 필드이며 0으로 설정될 수 있다. 
+
+struct   in_addr {
+        union {
+                struct {
+                      unsigned  char   s_b1,
+                                              s_b2,
+                                              s_b3,
+                                              s_b4;
+                }  S_un_b;
+
+                struct {
+                      unsigned  short  s_w1,
+                                              s_w2;
+                }  S_un_w;
+
+                unsigned long  S_addr;
+        } S_un; 
+};
+-sin_addr 필드는 IN_ADDR 타입의 또 다른 구조체. 
+프로그램은 IN_ADDR 구조체를 이용하여 IP 어드레스의 각 부분에 접근 할 수 있다.
+
+--------------------------------------------------------------------------------
+#include <stdio.h>
+#include <arpa/inet.h>
+
+int main(int argc,char *argv[])
+{
+    struct sockaddr_in ip_addr1; 
+    struct sockaddr_in ip_addr2; 
+
+    ip_addr1.sin_addr.s_addr = inet_addr (argv[1]); 
+    printf("inet_addr() : dotted decimal(%s) => hexa(%x)\n", 
+                          argv[1],ip_addr1.sin_addr.s_addr);  
+
+    inet_aton(argv[1],&ip_addr2.sin_addr); 
+    printf("inet_aton() : dotted decimal(%s) => hexa(%x)\n", 
+                          argv[1],ip_addr2.sin_addr.s_addr);  
+    exit(0);
+}
+-------------------------------------------------------------------------------
+#include <arpa/inet.h>
+
+char  *inet_ntoa(struct in_addr inaddr);
+                               Rerurns : pointer to dotted-decimal string
+
+ -32비트 네트워크 바이트 순서로 된 inaddr을 10진수 문자열로 변환(리턴)한다
+---------------------------------------------------------------------------------
+#include <stdio.h>
+#include <arpa/inet.h>
+
+int main(int argc,char *argv[])
+{
+    struct sockaddr_in ip_addr; 
+    char *ip;
+
+    ip_addr.sin_addr.s_addr = inet_addr (argv[1]); 
+    printf("inet_addr() : dotted decimal(%s) => hexa(%x)\n", 
+                          argv[1],ip_addr.sin_addr.s_addr);  
+
+    ip = inet_ntoa(ip_addr.sin_addr); 
+    printf("inet_aton() : hexa(%x) => dotted decimal(%s)\n", 
+                          ip_addr.sin_addr.s_addr,ip);  
+
+    exit(0);
+}
+-----------------------------------------------------------------------------
+#include <netdb.h>
+
+struct  hostent    *gethostbyname(const  char *hostname);
+
+                   Rerurns : nonnull pointer if OK, on error whit h_errno set
+
+ -호스트의 이름을 통하여 네이밍 서비스로 부터 IP주소를 포함한 호스트 정보를  
+    리턴
+ -h_errno 는 netdb.h에 정의된 에러 상수값으로 set
+
+struct hostent
+{ 
+    char  * h_name;                 /* 호스트 공식 이름 */ 
+    char  ** h_aliases;              /* 호스트 별명들 */ 
+    int     h_addrtype;                  /* 호스트 주소의 종류 */ 
+    int     h_length;                      /* 주소의 크기(바이트 단위) */ 
+    char  **h_addr_list;              /* 주소 리스트 */ 
+};
+------------------------------------------------------------------------------
+#include <stdio.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv)
+{
+    char	*ptr, **pptr;
+    char	str[20],temp[20];
+    struct hostent	*hptr;
+    struct sockaddr_in ip_addr; 
+    const u_char *p;
+    int i;
+
+    if ( (hptr = gethostbyname(argv[1])) == NULL) {
+ 	printf("gethostbyname error\n");
+ 	exit(1);
+    }
+    printf("official hostname: %s\n", hptr->h_name);
+    for (pptr = hptr->h_aliases; *pptr != NULL; pptr++)
+         printf("\talias: %s\n", *pptr);
+
+    printf("Address Length : %d\n",hptr->h_length);
+    
+    for(pptr=hptr->h_addr_list,i=0;*pptr != NULL;pptr++,i++){
+          ip_addr.sin_addr.s_addr = *(unsigned long *)hptr->h_addr_list[i];
+          printf("address : %s \n",inet_ntoa(ip_addr.sin_addr));          
+    }
+    exit(0);
+}
+------------------------------------------------------------------------------------
+#include <netdb.h>
+
+struct hostent  *gethostbyaddr(const char *addr, size_t len,int family);
+
+                 Rerurns : nonnull pointer if OK, NULL on error with h_errno set
+
+ -이진의 네트워크 바이트 순서로 된 주소의 포인터를 통하여 호스트 이름을 얻는다.
+ -addr 인수는 char *이 아니고 in_addr 구조이다.
+
+--------------------------------------------------------------------------------------
+#include <netdb.h>
+#include <arpa/inet.h>
+int main(int argc,char *argv[])
+{
+    char **pptr;
+    struct hostent	*hptr;
+    struct sockaddr_in ip_addr,ip_val; 
+
+    inet_aton(argv[1],&ip_addr.sin_addr); 
+    hptr = gethostbyaddr((char *)&ip_addr.sin_addr,4,AF_INET);
+    printf("official hostname: %s\n", hptr->h_name);
+
+    for (pptr = hptr->h_aliases; *pptr != NULL; pptr++)
+	printf("\talias: %s\n", *pptr);
+
+    ip_val.sin_addr.s_addr = *(unsigned long *)hptr->h_addr_list[0];
+    printf("address : %s \n",inet_ntoa(ip_val.sin_addr));          
+    exit(0);
+}
+--------------------------------------------------------------------------------------
+#include <sys/utsname.h>
+
+int    uname(struct   utsname *name)
+
+          Rerurns : nonnegative value if OK, -1 on error
+
+ -utsname 구조체로 부터 호스트명을 얻을수 있다.
+struct utsname{
+         char sysname[_UTS_NAMESIZE];             // name of O.S
+         char nodename[_UTS_NODESIZE]            // name of node
+         char release[_UTS_NAMESIZE]                 // O.S release
+         char version[_UTS_NAMESIZE];                // O.S version
+         char machine[_UTS_NAMESIZE];              //  hardware type
+}
+
+------------------------------------------------------------------------------------
+#include <sys/utsname.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+int main()
+{
+    struct hostent *hptr;   
+    struct utsname myname;    
+    struct sockaddr_in ip_addr; 
+    
+    if(uname(&myname) < 0){
+        printf("uname error\n");   exit(1);
+    }
+    if((hptr=gethostbyname(myname.nodename))==NULL) {
+        printf("gethostbyname error\n");     
+	exit(1);
+    }   
+    ip_addr.sin_addr.s_addr = *(unsigned long *)hptr->h_addr_list[0];
+    printf("hostname : %s, address : %s \n",myname.nodename,inet_ntoa(ip_addr.sin_addr));          
+    
+    exit(0);
+}
+---------------------------------------------------------------------------------------
+#include <unistd.h>
+
+int    gethostname(char   *name, size_t  namelen);
+
+               Returns : 0 if OK, -1 on error
+
+ -name인자에 호스트 명을 반환
+---------------------------------------------------------------------------------------
+2)TCP/UDP Socket API
+*tcp protocol
+
+	socket()		socket()
+				bind()
+				listen()
+
+	connect()   ------>	accept()
+
+	recv()	    ------>	send()
+
+	send()	    ------>	recv()
+
+	close()	    ------>	종료
+
+	<client>		<server>
+
+*udp protocol
+	socket()		socket()
+				bind()
+
+	sendto()    ------	recvfrom()
+
+	recvfrom()  ------	sendto()
+
+	close()	    ------>	종료
+
+	<client>		<server>
+
+-------------------------------------------------------
+#include <sys/socket.h>
+	int socket(int family, int type, int protocol);
+◆Protocol Family
+
+- 인터넷 프로토콜 체게
+- 표준에서는 PF_XXX 이용을 권장
+- Protocol Family :  PF_XXX
+- Address Family :  AF_XXX
+
+/* Protocol families.  */
+#define PF_LOCAL        1               /* Local to host (pipes and file-domain).  */
+#define PF_UNIX         PF_LOCAL   /* Old BSD name for PF_LOCAL.  */
+#define PF_FILE         PF_LOCAL   /* Another non-standard name for PF_LOCAL.*/
+#define PF_INET         2               /* IP protocol family.  */
+#define PF_IPX          4               /* Novell Internet Protocol.  */
+#define PF_APPLETALK    5            /* Appletalk DDP.  */
+             …
+/* Protocol families.  */
+#define AF_LOCAL        PF_LOCAL
+#define AF_UNIX         PF_UNIX
+#define AF_FILE         PF_FILE
+#define AF_INET         PF_INET
+#define AF_IPX          PF_IPX
+#define AF_APPLETALK    PF_APPLETALK
+               …
+
+◆Socket Type
+
+- 소켓의 형태를 지정한다.
+- 소켓을 통한 데이터 전송의 의미를 결정
+
+SOCK_STREAM     - 스트림 방식의 소켓 생성
+
+SOCK_DGRAM      - 데이터그램 방식의 소켓 생성
+
+----------------------------------------------------
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/socket.h> 
+int main() 
+{ 
+    /* 파일 및 소켓번호 */ 
+    int fd1, fd2, sd1, sd2 ; 
+    /* 파일 열기 */ 
+    fd1 = open("/etc/passwd", O_RDONLY, 0) ; 
+    printf("/etc/passwd's file descriptor = %d\n", fd1) ; 
+
+    /* 스트림형 소켓 열기 */ 
+    sd1 = socket(PF_INET, SOCK_STREAM, 0) ; 
+    printf("stream socket descriptor = %d\n", sd1) ; 
+    /* 데이터그램형 소켓 열기 */ 
+    sd2 = socket(PF_INET, SOCK_DGRAM, 0) ; 
+    printf("datagram socket descriptor = %d\n", sd2) ; 
+    /* 또다른 파일 열기 */ 
+    fd2 = open("/etc/hosts", O_RDONLY, 0) ; 
+    printf("/etc/hosts's file descriptor = %d\n", fd2) ; 
+    /* 파일 및 소켓 닫기 */ 
+    close(fd2) ; 
+    close(fd1) ; 
+    close(sd2) ; 
+    close(sd1) ; 
+}
+------------------------------------------------------------
+#include <sys/socket.h>
+	int bind(int sockfd, const struct sockaddr *myaddr,socklen_t addrlen);
+
+     struct sockaddr_in 
+     { 
+        short sin_family ;              /* AF_INET */ 
+        u_short sin_port ;              /* 16-bit port number */
+        struct in_addr sin_addr ;   /*  32bit binary address */ 
+        char sin_zero[8] ;              /* unused */ 
+     } 
+
+-----------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv, char **envp)
+{
+     int sck_inet, len_inet;               
+     struct sockaddr_in adr_inet;
+  
+     sck_inet = socket(AF_INET,SOCK_STREAM,0);
+ 
+     memset(&adr_inet,0,sizeof adr_inet);
+     adr_inet.sin_family = AF_INET;
+     //htons()short값을 호스트 바이트 순서를 네트워크 바이트 순서로 변환
+     adr_inet.sin_port = htons(9000); 
+     inet_aton(argv[1],&adr_inet.sin_addr);
+     len_inet = sizeof(adr_inet);
+ 
+     bind(sck_inet,(struct sockaddr *)&adr_inet,len_inet);
+     system("netstat -pa --tcp ");
+     close(sck_inet);
+     return 0;
+}
+-----------------------------------------------------------
+#include <sys/socket.h>
+int getsockname(int s, struct sockaddr *name, socklen_t *namelen)
+
+Rerurns : 0 if OK, -1 on error
+ -소켓과 연계된 지역 프로토콜 주소를 얻는다.
+-------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv)
+{
+    int sck_inet; 
+    struct sockaddr_in addr_inet,get_addr;
+    int len_inet;               
+
+    sck_inet = socket(AF_INET,SOCK_STREAM,0);
+
+    memset(&addr_inet,0,sizeof(addr_inet));
+    addr_inet.sin_family = AF_INET;
+    addr_inet.sin_port = htons(9000);
+    inet_aton(argv[1],&addr_inet.sin_addr);
+
+    len_inet = sizeof(addr_inet);
+    
+    if(bind(sck_inet,(struct sockaddr *)&addr_inet,len_inet)<0){
+        printf("bind error\n");
+        exit(1);
+    }
+    if(getsockname(sck_inet,(struct sockaddr *)&get_addr,&len_inet)<0){
+        printf("getsockname error\n");
+        exit(1);
+    }
+    printf("IP : %s, PORT : %u\n",
+                inet_ntoa(get_addr.sin_addr),
+                (unsigned)ntohs(get_addr.sin_port)); 
+                
+    close(sck_inet);
+    exit(0);
+} 
+------------------------------------------------------
+#include <sys/socket.h>
+int  getpeername(int  s,  struct sockaddr *name, socklen_t   *namelen);
+
+Rerurns : 0 if OK, -1 on error
+
+ -소켓과 연계된 원격지 프로토콜을 얻는다
+---------------------------------------------------------
+#include <sys/socket.h>
+int listen(int sockfd, int backlog);
+
+Return : 0 if OK, -1 on error
+- 연결요청을 받아 들이겠다고 선언
+----------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv, char **envp)
+{
+     int sck_inet;
+     struct sockaddr_in adr_inet;
+     int len_inet;               
+ 
+     sck_inet = socket(AF_INET,SOCK_STREAM,0);
+ 
+     memset(&adr_inet,0,sizeof adr_inet);
+     adr_inet.sin_family = AF_INET;
+     adr_inet.sin_port = htons(9000);
+     inet_aton(argv[1],&adr_inet.sin_addr);
+     len_inet = sizeof(adr_inet);
+     if(bind(sck_inet,(struct sockaddr *)&adr_inet,len_inet)<0)
+     { 
+           printf("bind error\n");
+           exit(0);
+     }
+     
+    if(listen(sck_inet,5)<0)
+    {
+           printf("bind error\n");
+           exit(0);
+    }
+ 
+     system("netstat -pa --tcp ");
+     close(sck_inet);
+     return 0;
+}
+-----------------------------------------------------------
+#include <sys/socket.h>
+int accept(int sockfd, struct sockaddr *client,socklen_t *addrlen);
+
+Return : nonnegative descriptor if OK, -1 on error
+
+struct sockaddr *client
+          - Client의 연결정보
+          - Client 프로토콜 정보가 필요 없는 경우 NULL 지정
+          - 리턴한 socket descriptor를 통하여 send(), recv()
+------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv, char **envp)
+{
+     int sck_inet,new_fd;
+     struct sockaddr_in adr_inet,their_addr;
+     int len_inet,sin_size;
+ 
+     sck_inet = socket(AF_INET,SOCK_STREAM,0);
+ 
+     memset(&adr_inet,0,sizeof adr_inet);
+     adr_inet.sin_family = AF_INET;
+     adr_inet.sin_port = htons(9000);
+     inet_aton(argv[1],&adr_inet.sin_addr);
+     len_inet = sizeof(adr_inet);
+ 
+     if(bind(sck_inet,(struct sockaddr *)&adr_inet,len_inet)<0){
+         printf("bind error\n");
+         exit(0);
+     }
+    if(listen(sck_inet,5)<0){
+         printf("bind error\n");
+         exit(0);
+     }
+     sin_size = sizeof(struct sockaddr_in);
+     new_fd = accept(sck_inet, &their_addr, &sin_size);
+ 
+ 
+     system("netstat -pa --tcp ");
+     close(sck_inet);
+     return 0;
+}
+-------------------------------------------------------------
+#include <sys/socket.h>
+int connect(int sockfd, const struct sockadde *servaddr,socklen_t addrlen);
+
+Return : 0 if OK, -1 on error
+
+- 서버와의 연결을 시도
+- 보통 연결 지향 프로토콜인 TCP 클라이언트가 사용한다
+
+struct sockaddr *servaddr
+          - 연결하고자 하는 Server의 연결정보 지정
+----------------------------------------------------------
+#include <sys/socket.h>
+int close(int sockfd);
+
+Return : 0 if OK, -1 on error
+
+- 소켓의 사용을 마치려면 해당 소켓 번호를 지정하여 close()를 호출
+
+- 클라이언트나 서버 어느 쪽이 먼저 시작해도 무방
+
+----------------------------------------------------------------------
+#include <sys/socket.h>
+#include <sys/types.h>
+int send(int sockfd,char *buff,int nbyte,int flag);
+int recv(int sockfd,char *buff,int nbytes,int flag);
+int sendto(int sockfd,char *buff,int nbytes,int flag,
+                                 struct sockaddr *to,int addrlen);
+int recvfrom(int sockfd,char *buff,int nbytes,int flag,
+                                      struct sockaddr *from,int *addrlen);
+
+Return : send or recv bytes if OK, -1 on error
+
+flag
+       - 0 : write 함수와 동일한 역할
+       - MSG_OOB  : out of band 데이터 송수신
+       - MSG_PEEK : 도착 메시지 엿보기
+
+--------------------------------------------------------------------------
+<http 통신>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#define MAX_STRING_LENGTH 100
+
+int main(int argc, char *argv[])
+{
+    int sockfd;
+    struct sockaddr_in cliaddr;
+    char sendmsg[MAX_STRING_LENGTH];
+    char recvmsg[MAX_STRING_LENGTH];
+    
+    if(argc != 2)
+    {
+        printf("usage : gethtml IP \n");
+        exit(0);
+    }
+    sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    
+    bzero(&cliaddr, sizeof(cliaddr));
+    cliaddr.sin_family = AF_INET;
+    cliaddr.sin_port = htons(80);
+    cliaddr.sin_addr.s_addr = inet_addr(argv[1]);
+
+    connect(sockfd, (struct sockaddr *)&cliaddr, sizeof(cliaddr));
+
+    bzero(sendmsg, MAX_STRING_LENGTH);
+    strcpy(sendmsg,"GET /index.html\n");
+    send(sockfd, sendmsg, sizeof(sendmsg), 0);
+
+    while (1)
+    {
+      	bzero(recvmsg, MAX_STRING_LENGTH);
+	 if (recv(sockfd, recvmsg, sizeof(recvmsg) - 1, 0) <= 0){
+	           break;
+	 }
+	 printf("%s", recvmsg);
+    }
+    close(sockfd);
+    exit(0);
+}
+
+---------------------------------------------------------------------------
+<server>
+#include <stdio.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+
+#define MYPORT 50000    /* the port users will be connecting to */
+#define BACKLOG 10     /* how many pending connections queue will hold */
+#define MAXSIZE 100
+main()
+{
+    int sockfd, new_fd;  /* listen on sock_fd, new connection on new_fd */
+    struct sockaddr_in my_addr;    /* my address information */
+    struct sockaddr_in their_addr; /* connector's address information */
+    int sin_size;
+    char buf[MAXSIZE];
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+    my_addr.sin_family = AF_INET;         /* host byte order */
+    my_addr.sin_port = htons(MYPORT);     /* short, network byte order */
+    my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
+    bzero(&(my_addr.sin_zero), 8);        /* zero the rest of the struct */
+
+    if(bind(sockfd,(struct sockaddr *)&my_addr,sizeof(struct sockaddr))== -1) {
+        perror("bind");
+        exit(1);
+    }
+
+    if (listen(sockfd, BACKLOG) == -1) {
+        perror("listen");
+        exit(1);
+    }
+
+    sin_size = sizeof(struct sockaddr_in);
+    if((new_fd=accept(sockfd,(struct sockaddr *)&their_addr,&sin_size))== -1){
+            perror("accept");
+            exit(0);
+    }
+    printf("server:connection from %s\n",inet_ntoa(their_addr.sin_addr));
+    printf("Input Message : ");
+    fflush(stdin);
+    fgets(buf,MAXSIZE,stdin);
+
+    if(send(new_fd,buf,strlen(buf),0) == -1){
+            perror("send");
+            close(new_fd);
+            exit(0);
+    }
+    close(new_fd);
+    close(sockfd);
+}
+--------
+<client>
+#include <stdio.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <netdb.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+
+#define PORT 50000    /* the port client will be connecting to */
+#define MAXDATASIZE 100 /* max number of bytes we can get at once */
+
+int main(int argc, char *argv[])
+{
+    int sockfd, numbytes;  
+    char buf[MAXDATASIZE];
+    struct hostent *he;
+    struct sockaddr_in their_addr; /* connector's address information */
+
+    if (argc != 2) {
+        fprintf(stderr,"usage: %s IP\n",argv[0]);
+            exit(1);
+    }    
+    if ((he=gethostbyname(argv[1])) == NULL) {  /* get the host info */
+        herror("gethostbyname");
+        exit(1);
+    }
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+    their_addr.sin_family = AF_INET;      /* host byte order */
+    their_addr.sin_port = htons(PORT);    /* short, network byte order */
+    their_addr.sin_addr = *((struct in_addr *)he->h_addr);
+    bzero(&(their_addr.sin_zero), 8);     /* zero the rest of the struct */
+
+    if(connect(sockfd,(struct sockaddr *)&their_addr,sizeof(struct sockaddr))==-1){
+        perror("connect");
+        exit(1);
+    }
+     // block
+    if ((numbytes=recv(sockfd, buf, MAXDATASIZE, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+    buf[numbytes] = '\0';
+
+    printf("Received: %s",buf);
+    close(sockfd);
+
+    return 0;
+}
+
+
