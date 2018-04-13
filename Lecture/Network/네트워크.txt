@@ -273,11 +273,11 @@ struct  hostent    *gethostbyname(const  char *hostname);
 
 struct hostent
 { 
-    char  * h_name;                 /* 호스트 공식 이름 */ 
+    char  * h_name;                  /* 호스트 공식 이름 */ 
     char  ** h_aliases;              /* 호스트 별명들 */ 
-    int     h_addrtype;                  /* 호스트 주소의 종류 */ 
-    int     h_length;                      /* 주소의 크기(바이트 단위) */ 
-    char  **h_addr_list;              /* 주소 리스트 */ 
+    int     h_addrtype;              /* 호스트 주소의 종류 */ 
+    int     h_length;                /* 주소의 크기(바이트 단위) */ 
+    char  **h_addr_list;             /* 주소 리스트 */ 
 };
 ------------------------------------------------------------------------------
 #include <stdio.h>
@@ -348,11 +348,11 @@ int    uname(struct   utsname *name)
 
  -utsname 구조체로 부터 호스트명을 얻을수 있다.
 struct utsname{
-         char sysname[_UTS_NAMESIZE];             // name of O.S
+         char sysname[_UTS_NAMESIZE];            // name of O.S
          char nodename[_UTS_NODESIZE]            // name of node
-         char release[_UTS_NAMESIZE]                 // O.S release
-         char version[_UTS_NAMESIZE];                // O.S version
-         char machine[_UTS_NAMESIZE];              //  hardware type
+         char release[_UTS_NAMESIZE]             // O.S release
+         char version[_UTS_NAMESIZE];            // O.S version
+         char machine[_UTS_NAMESIZE];            // hardware type
 }
 
 ------------------------------------------------------------------------------------
@@ -386,7 +386,7 @@ int    gethostname(char   *name, size_t  namelen);
 
  -name인자에 호스트 명을 반환
 ---------------------------------------------------------------------------------------
-2)TCP/UDP Socket API
+2)TCP/UDP Socket API (소켓 통신 )
 *tcp protocol
 
 	socket()		socket()
@@ -398,6 +398,7 @@ int    gethostname(char   *name, size_t  namelen);
 	recv()	    ------>	send()
 
 	send()	    ------>	recv()
+
 
 	close()	    ------>	종료
 
@@ -417,7 +418,7 @@ int    gethostname(char   *name, size_t  namelen);
 
 -------------------------------------------------------
 #include <sys/socket.h>
-	int socket(int family, int type, int protocol);
+	int socket(int family, int type, int protocol); 주소체계 종료/ 소켓 종류/ (tcp/udp)
 ◆Protocol Family
 
 - 인터넷 프로토콜 체게
@@ -426,12 +427,12 @@ int    gethostname(char   *name, size_t  namelen);
 - Address Family :  AF_XXX
 
 /* Protocol families.  */
-#define PF_LOCAL        1               /* Local to host (pipes and file-domain).  */
-#define PF_UNIX         PF_LOCAL   /* Old BSD name for PF_LOCAL.  */
-#define PF_FILE         PF_LOCAL   /* Another non-standard name for PF_LOCAL.*/
-#define PF_INET         2               /* IP protocol family.  */
+#define PF_LOCAL        1               /* Local to host (pipes and file-domain).  */ (자주)
+#define PF_UNIX         PF_LOCAL   	/* Old BSD name for PF_LOCAL.  */
+#define PF_FILE         PF_LOCAL   	/* Another non-standard name for PF_LOCAL.*/ 
+#define PF_INET         2               /* IP protocol family.  */			(자주)
 #define PF_IPX          4               /* Novell Internet Protocol.  */
-#define PF_APPLETALK    5            /* Appletalk DDP.  */
+#define PF_APPLETALK    5            	/* Appletalk DDP.  */
              …
 /* Protocol families.  */
 #define AF_LOCAL        PF_LOCAL
@@ -462,7 +463,7 @@ int main()
     /* 파일 및 소켓번호 */ 
     int fd1, fd2, sd1, sd2 ; 
     /* 파일 열기 */ 
-    fd1 = open("/etc/passwd", O_RDONLY, 0) ; 
+    fd1 = open("/etc/passwd", O_RDONLY, 0) ; //통신시 필요 없음
     printf("/etc/passwd's file descriptor = %d\n", fd1) ; 
 
     /* 스트림형 소켓 열기 */ 
@@ -515,16 +516,17 @@ int main(int argc, char **argv, char **envp)
      len_inet = sizeof(adr_inet);
  
      bind(sck_inet,(struct sockaddr *)&adr_inet,len_inet);
-     system("netstat -pa --tcp ");
+     system("netstat -pa --tcp "); //쉘명령 실행:
      close(sck_inet);
      return 0;
 }
 -----------------------------------------------------------
 #include <sys/socket.h>
 int getsockname(int s, struct sockaddr *name, socklen_t *namelen)
-
+//번호 , 주소 정보를 담을 주소, 주소길이
 Rerurns : 0 if OK, -1 on error
- -소켓과 연계된 지역 프로토콜 주소를 얻는다.
+
+ -소켓과 연계된 지역 프로토콜 주소를 얻는다. //로컬 주소값(소켓 오픈한 )
 -------------------------------------------------------------
 #include <stdio.h>
 #include <unistd.h>
@@ -539,12 +541,12 @@ int main(int argc, char **argv)
     struct sockaddr_in addr_inet,get_addr;
     int len_inet;               
 
-    sck_inet = socket(AF_INET,SOCK_STREAM,0);
+    sck_inet = socket(AF_INET,SOCK_STREAM,0); //tcp
 
-    memset(&addr_inet,0,sizeof(addr_inet));
-    addr_inet.sin_family = AF_INET;
-    addr_inet.sin_port = htons(9000);
-    inet_aton(argv[1],&addr_inet.sin_addr);
+    memset(&addr_inet,0,sizeof(addr_inet)); //초기화
+    addr_inet.sin_family = AF_INET; //주소체계저장
+    addr_inet.sin_port = htons(9000); //network endian 형태로 바꿔줌
+    inet_aton(argv[1],&addr_inet.sin_addr); 10진 주소를 binary 주소로 변환
 
     len_inet = sizeof(addr_inet);
     
@@ -569,7 +571,7 @@ int  getpeername(int  s,  struct sockaddr *name, socklen_t   *namelen);
 
 Rerurns : 0 if OK, -1 on error
 
- -소켓과 연계된 원격지 프로토콜을 얻는다
+ -소켓과 연계된 원격지 프로토콜을 얻는다  //소켓 오픈한 상대방쪽 정보
 ---------------------------------------------------------
 #include <sys/socket.h>
 int listen(int sockfd, int backlog);
@@ -685,8 +687,12 @@ Return : 0 if OK, -1 on error
 ----------------------------------------------------------------------
 #include <sys/socket.h>
 #include <sys/types.h>
+-> read/write 함수 사용 
+
+//tcp
 int send(int sockfd,char *buff,int nbyte,int flag);
 int recv(int sockfd,char *buff,int nbytes,int flag);
+//udp
 int sendto(int sockfd,char *buff,int nbytes,int flag,
                                  struct sockaddr *to,int addrlen);
 int recvfrom(int sockfd,char *buff,int nbytes,int flag,
@@ -696,8 +702,8 @@ Return : send or recv bytes if OK, -1 on error
 
 flag
        - 0 : write 함수와 동일한 역할
-       - MSG_OOB  : out of band 데이터 송수신
-       - MSG_PEEK : 도착 메시지 엿보기
+       - MSG_OOB  : out of band 데이터 송수신 // 긴급 메세지
+       - MSG_PEEK : 도착 메시지 엿보기        
 
 --------------------------------------------------------------------------
 <http 통신>
@@ -764,16 +770,17 @@ main()
     struct sockaddr_in their_addr; /* connector's address information */
     int sin_size;
     char buf[MAXSIZE];
-
+	//서버소켓 오픈
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
         exit(1);
     }
+	//바인드할 서버 주소와 포트 생성
     my_addr.sin_family = AF_INET;         /* host byte order */
     my_addr.sin_port = htons(MYPORT);     /* short, network byte order */
     my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
     bzero(&(my_addr.sin_zero), 8);        /* zero the rest of the struct */
-
+	//바인드, 오픈한 소켓에 ip와 port 할당
     if(bind(sockfd,(struct sockaddr *)&my_addr,sizeof(struct sockaddr))== -1) {
         perror("bind");
         exit(1);
@@ -785,22 +792,32 @@ main()
     }
 
     sin_size = sizeof(struct sockaddr_in);
+	//클라이언트의 전속을 기다리며 대기
+	//접속 요청을 수락하고 요청한 클라이언트와 1:1 통신할 소켓을 오픈하여 fd를 반환
+	//두번째 파라메터 주소에 소켓에 연결된 클라이언트의 주소가 저장됨
     if((new_fd=accept(sockfd,(struct sockaddr *)&their_addr,&sin_size))== -1){
             perror("accept");
             exit(0);
     }
+	//클라이언트의 주소정보 출력
     printf("server:connection from %s\n",inet_ntoa(their_addr.sin_addr));
     printf("Input Message : ");
     fflush(stdin);
+	//키보드 한줄 입력받아
     fgets(buf,MAXSIZE,stdin);
-
+	//소켓에 쓴다 
     if(send(new_fd,buf,strlen(buf),0) == -1){
             perror("send");
+	//소켓에 메시지 전송 에러시 클라이언트와 연결된 소켓을 닫음
             close(new_fd);
             exit(0);
     }
+	//클라이언트와 연결된 소켓을 닫음
     close(new_fd);
+	//서버 소켓 닫음
     close(sockfd);
+
+//바인드, listen, accept
 }
 --------
 <client>
@@ -822,40 +839,45 @@ int main(int argc, char *argv[])
     struct hostent *he;
     struct sockaddr_in their_addr; /* connector's address information */
 
+	//main 파라미터로 서버의 ip입력받음 x 종료
     if (argc != 2) {
         fprintf(stderr,"usage: %s IP\n",argv[0]);
             exit(1);
-    }    
+    }    //호스트 이름으로 바이너리 주소 획득
     if ((he=gethostbyname(argv[1])) == NULL) {  /* get the host info */
         herror("gethostbyname");
         exit(1);
     }
 
+	//서버소켓 오픈 (서버에 연결)
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
         exit(1);
     }
-
+	//서버에 connect할 주소 생성
     their_addr.sin_family = AF_INET;      /* host byte order */
     their_addr.sin_port = htons(PORT);    /* short, network byte order */
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
     bzero(&(their_addr.sin_zero), 8);     /* zero the rest of the struct */
-
+	//서버에 연결 요청
     if(connect(sockfd,(struct sockaddr *)&their_addr,sizeof(struct sockaddr))==-1){
         perror("connect");
         exit(1);
     }
      // block
+		//소켓에서 한줄을 읽어서 buf에 저장
     if ((numbytes=recv(sockfd, buf, MAXDATASIZE, 0)) == -1) {
         perror("recv");
         exit(1);
     }
+	//끝에 널문자 추가
     buf[numbytes] = '\0';
-
+	//buf 출력
     printf("Received: %s",buf);
     close(sockfd);
 
     return 0;
+//connet ,send 
 }
 
 
